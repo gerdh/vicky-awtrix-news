@@ -1,0 +1,26 @@
+
+# Private/runtime data
+config.py
+.env
+*.log
+logs/
+backup/
+__pycache__/
+*.pyc
+*.json
+memory*
+seen*
+llama-cache/
+
+# Private/runtime data
+config.py
+.env
+*.log
+logs/
+backup/
+__pycache__/
+*.pyc
+*.json
+memory*
+seen*
+llama-cache/
