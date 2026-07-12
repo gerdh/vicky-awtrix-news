@@ -6,10 +6,10 @@ import time
 import html
 import re
 
-MQTT_HOST = "192.168.1.38"
-MQTT_USER = "mqtt_user"
-MQTT_PASS = "mqtt_user"
-BASE_TOPIC = "awtrix_3e6014/custom"
+MQTT_HOST = "127.0.0.1"
+MQTT_USER = "your_mqtt_user"
+MQTT_PASS = "your_mqtt_password"
+BASE_TOPIC = "awtrix_yourdevice/custom"
 
 NEWS_SOURCES = [
     {
