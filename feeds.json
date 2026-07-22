@@ -1,0 +1,44 @@
+{
+  "feeds": [
+    {
+      "name": "france",
+      "url": "https://www.lemonde.fr/rss/une.xml",
+      "color": "france",
+      "language": "fr",
+      "priority": 10,
+      "enabled": true
+    },
+    {
+      "name": "spiegel",
+      "url": "https://www.spiegel.de/schlagzeilen/tops/index.rss",
+      "color": "spiegel",
+      "language": "de",
+      "priority": 10,
+      "enabled": true
+    },
+    {
+      "name": "bbc",
+      "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+      "color": "bbc",
+      "language": "en",
+      "priority": 8,
+      "enabled": true
+    },
+    {
+      "name": "guardian",
+      "url": "https://www.theguardian.com/world/rss",
+      "color": "guardian",
+      "language": "en",
+      "priority": 8,
+      "enabled": true
+    },
+    {
+      "name": "lesechos",
+      "url": "https://news.google.com/rss/search?q=site%3Alesechos.fr+%28finances+publiques+OR+budget+OR+fiscalite+OR+economie+francaise%29&hl=fr&gl=FR&ceid=FR%3Afr",
+      "color": "france",
+      "language": "fr",
+      "priority": 9,
+      "enabled": true
+    }
+  ]
+}
