@@ -1,26 +1,23 @@
-
-# Private/runtime data
-config.py
-.env
-*.log
-logs/
-backup/
 __pycache__/
 *.pyc
-*.json
-memory*
-seen*
-llama-cache/
 
-# Private/runtime data
-config.py
-.env
-*.log
-logs/
 backup/
-__pycache__/
-*.pyc
-*.json
-memory*
-seen*
-llama-cache/
+cache/
+logs/
+
+*.tar.gz
+*.zip
+
+.env
+.env.*
+
+*.log
+
+.vscode/
+.idea/
+
+# Alte lokale Entwicklungsstände
+*_before_*.py
+*.backup_*
+awtrix_news.py
+awtrix_news_v2.py
