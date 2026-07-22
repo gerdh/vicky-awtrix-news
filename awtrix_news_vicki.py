@@ -1,0 +1,546 @@
+#!/usr/bin/env python3
+
+import hashlib
+import json
+import re
+import threading
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import feedparser
+
+from colors import COLORS
+from display import clear, publish
+from news_editor_v5 import vicki_topic_edit
+from news_ranker import prioritize_items
+
+
+MAX_MESSAGES = 6
+MAX_PER_FEED = 5
+
+POLL_SECONDS = 300
+BULLETIN_SECONDS = 15 * 60
+NEWS_VISIBLE_SECONDS = 10 * 60
+POOL_HOURS = 48
+
+BASE_DIR = Path(__file__).resolve().parent
+FEEDS_FILE = BASE_DIR / "feeds.json"
+POOL_FILE = BASE_DIR / "cache/news_pool_v4.json"
+LAST_BULLETIN_FILE = BASE_DIR / "cache/last_bulletin_v4.txt"
+FORCE_REFRESH_FILE = Path("/tmp/vicky-news-force-refresh")
+LOG_FILE = BASE_DIR / "logs/awtrix_news_vicki.log"
+
+
+DEFAULT_FEEDS = [
+    {
+        "name": "france",
+        "url": "https://www.lemonde.fr/rss/une.xml",
+        "color": "france",
+        "language": "fr",
+        "priority": 10,
+        "enabled": True,
+    },
+    {
+        "name": "spiegel",
+        "url": "https://www.spiegel.de/schlagzeilen/tops/index.rss",
+        "color": "spiegel",
+        "language": "de",
+        "priority": 10,
+        "enabled": True,
+    },
+    {
+        "name": "bbc",
+        "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+        "color": "bbc",
+        "language": "en",
+        "priority": 8,
+        "enabled": True,
+    },
+    {
+        "name": "guardian",
+        "url": "https://www.theguardian.com/world/rss",
+        "color": "guardian",
+        "language": "en",
+        "priority": 8,
+        "enabled": True,
+    },
+]
+
+
+def log(message):
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    line = f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {message}"
+    print(line, flush=True)
+
+    with LOG_FILE.open("a", encoding="utf-8") as file:
+        file.write(line + "\n")
+
+
+def normalize_title(title):
+    title = title.lower()
+    title = re.sub(r"[^\w\s]", " ", title, flags=re.UNICODE)
+    title = re.sub(r"\s+", " ", title).strip()
+    return title
+
+
+def title_hash(title):
+    normalized = normalize_title(title)
+    return hashlib.sha1(normalized.encode("utf-8")).hexdigest()
+
+
+def load_json(path, default):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return default
+
+
+def save_json(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    temporary.replace(path)
+
+
+def load_feeds():
+    config = load_json(FEEDS_FILE, {"feeds": DEFAULT_FEEDS})
+    feeds = config.get("feeds", [])
+    valid = []
+
+    for feed in feeds:
+        if not isinstance(feed, dict):
+            continue
+
+        if not feed.get("enabled", True):
+            continue
+
+        name = str(feed.get("name", "")).strip()
+        url = str(feed.get("url", "")).strip()
+
+        if not name or not url:
+            continue
+
+        try:
+            priority = int(feed.get("priority", 5))
+        except (TypeError, ValueError):
+            priority = 5
+
+        valid.append(
+            {
+                "name": name,
+                "url": url,
+                "color": str(feed.get("color", "neutral")),
+                "language": str(feed.get("language", "")),
+                "priority": priority,
+            }
+        )
+
+    return valid
+
+
+def fetch_items():
+    items = []
+
+    for feed in load_feeds():
+        source = feed["name"]
+        url = feed["url"]
+
+        try:
+            parsed = feedparser.parse(url)
+
+            if getattr(parsed, "bozo", False):
+                error = getattr(
+                    parsed,
+                    "bozo_exception",
+                    "unknown feed error",
+                )
+                log(f"feed warning {source}: {error}")
+
+            entries = parsed.entries[:MAX_PER_FEED]
+            log(f"feed {source}: {len(entries)} titles")
+
+            for entry in entries:
+                title = (
+                    getattr(entry, "title", "") or ""
+                ).strip()
+
+                if not title:
+                    continue
+
+                color = COLORS.get(
+                    feed["color"],
+                    COLORS.get("neutral", "CCCCCC"),
+                )
+
+                items.append(
+                    {
+                        "id": title_hash(title),
+                        "source": source,
+                        "title": title,
+                        "color": color,
+                        "language": feed["language"],
+                        "priority": feed["priority"],
+                        "first_seen": datetime.now().isoformat(
+                            timespec="seconds"
+                        ),
+                        "published": False,
+                    }
+                )
+
+        except Exception as error:
+            log(f"feed ERROR {source}: {error}")
+
+    return items
+
+
+def load_pool():
+    pool = load_json(POOL_FILE, [])
+
+    if not isinstance(pool, list):
+        return []
+
+    return pool
+
+
+def cleanup_pool(pool):
+    cutoff = datetime.now() - timedelta(hours=POOL_HOURS)
+    cleaned = []
+
+    for item in pool:
+        try:
+            first_seen = datetime.fromisoformat(
+                item["first_seen"]
+            )
+        except Exception:
+            continue
+
+        if (
+            first_seen >= cutoff
+            or not item.get("published", False)
+        ):
+            cleaned.append(item)
+
+    return cleaned
+
+
+def update_pool(new_items):
+    pool = cleanup_pool(load_pool())
+    known_ids = {item.get("id") for item in pool}
+    added = 0
+
+    for item in new_items:
+        if item["id"] in known_ids:
+            continue
+
+        pool.append(item)
+        known_ids.add(item["id"])
+        added += 1
+
+        log(
+            f"POOL new: [{item['source']}] "
+            f"{item['title']}"
+        )
+
+    save_json(POOL_FILE, pool)
+    log(f"pool: {len(pool)} total, {added} added")
+    return pool
+
+
+def load_last_bulletin():
+    try:
+        return float(
+            LAST_BULLETIN_FILE.read_text(
+                encoding="utf-8"
+            ).strip()
+        )
+    except Exception:
+        return 0.0
+
+
+def save_last_bulletin(timestamp):
+    LAST_BULLETIN_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    LAST_BULLETIN_FILE.write_text(
+        str(timestamp),
+        encoding="utf-8",
+    )
+
+
+def bulletin_due():
+    return (
+        time.time() - load_last_bulletin()
+        >= BULLETIN_SECONDS
+    )
+
+
+def color_for_message(message, items):
+    message_headlines = message.get("headlines", [])
+
+    for headline in message_headlines:
+        for item in items:
+            if item["title"] == headline:
+                return item["color"]
+
+    text = message.get("text", "")
+
+    for item in items:
+        if item["title"] == text:
+            return item["color"]
+
+        if item["title"] in text or text in item["title"]:
+            return item["color"]
+
+    return COLORS.get("neutral", "CCCCCC")
+
+
+def clear_news_topics():
+    for index in range(1, 6):
+        clear(f"vicky_news_a_{index}")
+        clear(f"vicky_news_b_{index}")
+
+    for index in range(1, 11):
+        clear(f"vicky_news_{index}")
+        clear(f"vicky_ai_news_{index}")
+
+    log("news topics cleared")
+
+
+def publish_news(messages, items):
+    used = 0
+
+    for index, message in enumerate(
+        messages[:MAX_MESSAGES],
+        start=1,
+    ):
+        text = str(message.get("text", "")).strip()
+
+        if not text:
+            continue
+
+        if index <= 5:
+            topic = f"vicky_news_a_{index}"
+        else:
+            topic = f"vicky_news_b_{index - 5}"
+
+        color = color_for_message(message, items)
+
+        publish(
+            topic,
+            text,
+            color=color,
+            repeat=2,
+        )
+
+        log(
+            f"publish {topic}: "
+            f"[importance "
+            f"{message.get('importance', '?')}] "
+            f"{text}"
+        )
+
+        used = index
+
+    for index in range(used + 1, 6):
+        clear(f"vicky_news_a_{index}")
+
+    first_unused_b = max(1, used - 5 + 1)
+
+    for index in range(first_unused_b, 6):
+        clear(f"vicky_news_b_{index}")
+
+    timer = threading.Timer(
+        NEWS_VISIBLE_SECONDS,
+        clear_news_topics,
+    )
+    timer.daemon = True
+    timer.start()
+
+    log(
+        f"news will be cleared in "
+        f"{NEWS_VISIBLE_SECONDS // 60} minutes"
+    )
+
+
+def mark_published(pool, messages):
+    published_titles = set()
+
+    for message in messages:
+        for headline in message.get("headlines", []):
+            published_titles.add(headline)
+
+    now = datetime.now().isoformat(timespec="seconds")
+
+    for item in pool:
+        if item.get("title") in published_titles:
+            item["published"] = True
+            item["published_at"] = now
+
+    save_json(POOL_FILE, pool)
+
+
+def prepare_candidates(pool):
+    candidates = [
+        item
+        for item in pool
+        if not item.get("published", False)
+    ]
+
+    if not candidates:
+        return []
+
+    ranked = prioritize_items(candidates)
+
+    ranked.sort(
+        key=lambda item: int(
+            item.get("priority", 5)
+        ),
+        reverse=True,
+    )
+
+    return ranked[:30]
+
+
+def create_bulletin(pool):
+    candidates = prepare_candidates(pool)
+
+    log("---- TRIXY VERSION 6 BULLETIN ----")
+    log(f"candidates: {len(candidates)}")
+
+    if not candidates:
+        log("no unpublished headlines")
+        return False
+
+    headlines = [
+        item["title"]
+        for item in candidates
+    ]
+
+    for headline in headlines:
+        log(f"  {headline}")
+
+    try:
+        messages = vicki_topic_edit(
+            headlines,
+            max_topics=MAX_MESSAGES,
+        )
+    except Exception as error:
+        log(
+            f"vicki ERROR, "
+            f"fallback to raw headlines: {error}"
+        )
+
+        messages = [
+            {
+                "topic": "news",
+                "category": "actualité",
+                "importance": 5,
+                "text": headline,
+                "headlines": [headline],
+            }
+            for headline in headlines[:MAX_MESSAGES]
+        ]
+
+    if not messages:
+        log("vicki returned no messages")
+        return False
+
+    log("vicki result:")
+
+    for message in messages:
+        log(
+            json.dumps(
+                message,
+                ensure_ascii=False,
+            )
+        )
+
+    publish_news(messages, candidates)
+    mark_published(pool, messages)
+    save_last_bulletin(time.time())
+
+    log(
+        f"bulletin published: "
+        f"{len(messages)} messages"
+    )
+
+    return True
+
+
+def consume_button_request():
+    if not FORCE_REFRESH_FILE.exists():
+        return False
+
+    try:
+        FORCE_REFRESH_FILE.unlink()
+    except FileNotFoundError:
+        pass
+    except PermissionError:
+        log(
+            "button request file could not be removed; "
+            "continuing once"
+        )
+
+    return True
+
+
+def run_once():
+    feeds = load_feeds()
+    log(f"V4 poll: {len(feeds)} enabled feeds")
+
+    fetched = fetch_items()
+    pool = update_pool(fetched)
+
+    button_requested = consume_button_request()
+
+    if button_requested:
+        log("AWTRIX button refresh requested")
+        clear_news_topics()
+        create_bulletin(pool)
+
+    elif bulletin_due():
+        create_bulletin(pool)
+
+    else:
+        remaining = int(
+            BULLETIN_SECONDS
+            - (
+                time.time()
+                - load_last_bulletin()
+            )
+        )
+
+        remaining = max(0, remaining)
+
+        log(
+            f"next bulletin in about "
+            f"{remaining // 60} minutes"
+        )
+
+
+def main():
+    log("TRIXY Version 6 started")
+
+    log(
+        f"RSS poll every {POLL_SECONDS} seconds; "
+        f"bulletin every "
+        f"{BULLETIN_SECONDS // 60} minutes"
+    )
+
+    while True:
+        try:
+            run_once()
+        except Exception as error:
+            log(f"ERROR: {error}")
+
+        time.sleep(POLL_SECONDS)
+
+
+if __name__ == "__main__":
+    main()
