@@ -407,6 +407,78 @@ def prepare_candidates(pool):
     return ranked[:30]
 
 
+def prepare_button_candidates(pool):
+    """Return the five newest unique headlines, including previously shown ones."""
+    newest_first = sorted(
+        pool,
+        key=lambda item: str(item.get("first_seen", "")),
+        reverse=True,
+    )
+
+    result = []
+    seen = set()
+
+    for item in newest_first:
+        title = str(item.get("title", "")).strip()
+        key = normalize_title(title)
+
+        if not title or not key or key in seen:
+            continue
+
+        seen.add(key)
+        result.append(item)
+
+        if len(result) >= 5:
+            break
+
+    return result
+
+
+def create_button_bulletin(pool):
+    """Edit and publish exactly five fresh button-requested headlines."""
+    candidates = prepare_button_candidates(pool)
+
+    log("---- VICKY V6 BUTTON BULLETIN ----")
+    log(f"button candidates: {len(candidates)}")
+
+    if not candidates:
+        log("no headlines available for button refresh")
+        return False
+
+    messages = []
+
+    for item in candidates:
+        headline = item["title"]
+
+        try:
+            edited = vicki_topic_edit(
+                [headline],
+                max_topics=1,
+            )
+        except Exception as error:
+            log(f"button edit ERROR: {error}")
+            edited = []
+
+        if edited:
+            message = edited[0]
+            message["headlines"] = [headline]
+            messages.append(message)
+        else:
+            messages.append({
+                "topic": "news",
+                "category": "actualité",
+                "importance": 5,
+                "text": headline,
+                "headlines": [headline],
+            })
+
+    publish_news(messages[:5], candidates)
+    save_last_bulletin(time.time())
+
+    log(f"button bulletin published: {len(messages[:5])} messages")
+    return True
+
+
 def create_bulletin(pool):
     candidates = prepare_candidates(pool)
 
@@ -502,7 +574,7 @@ def run_once():
     if button_requested:
         log("AWTRIX button refresh requested")
         clear_news_topics()
-        create_bulletin(pool)
+        create_button_bulletin(pool)
 
     elif bulletin_due():
         create_bulletin(pool)
