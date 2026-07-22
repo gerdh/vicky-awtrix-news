@@ -181,7 +181,7 @@ No public V6 release has been created yet.
 
 ## License
 
-A public license has not yet been selected. Until a license is added, the source remains copyrighted and no redistribution rights are granted.
+Vicky is released under the [MIT License](LICENSE).
 
 ## Contributing
 
