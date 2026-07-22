@@ -1,0 +1,15 @@
+[Unit]
+Description=Vicky V6 AWTRIX News Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_LINUX_USER
+WorkingDirectory=/opt/vicky-awtrix-news
+ExecStart=/opt/vicky-awtrix-news/.venv/bin/python /opt/vicky-awtrix-news/awtrix_news_vicki.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
