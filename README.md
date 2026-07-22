@@ -181,7 +181,7 @@ No public V6 release has been created yet.
 
 ## License
 
-The repository contains a `LICENSE` file. Please review its terms before using or redistributing the software.
+A public license has not yet been selected. Until a license is added, the source remains copyrighted and no redistribution rights are granted.
 
 ## Contributing
 
