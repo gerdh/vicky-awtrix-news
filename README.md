@@ -4,7 +4,7 @@ Vicky is a self-hosted news editor that collects headlines from RSS feeds, ranks
 
 The working V6 installation currently runs on an NVIDIA Jetson Orin with Ubuntu Linux, Mosquitto, llama.cpp and an AWTRIX Light. Processing stays on the local network; no cloud AI service is required.
 
-> **Project status:** V6 is working on the original system. The cleaned source files and installation package are still being prepared for this public repository. The repository is therefore documentation-only at the moment and is not yet ready for a complete fresh installation.
+> **Project status:** The cleaned V6 source files are now available in this repository. V6 works on the original Jetson Orin installation; fresh installations on other systems have not yet been tested.
 
 ## What works today
 
@@ -56,9 +56,7 @@ Other Linux computers may work, but have not yet been documented or tested by th
 
 ## Installation
 
-A complete clean installation will be available when the V6 source files are added to this repository.
-
-The intended installation flow will be:
+Clone the repository and create a local Python environment:
 
 ```bash
 git clone https://github.com/gerdh/vicky-awtrix-news.git
@@ -76,29 +74,25 @@ After configuring MQTT, AWTRIX and the local LLM, Vicky will be started with:
 python3 awtrix_news_vicki.py
 ```
 
-These commands are included to show the planned public layout. They will become usable when the cleaned V6 program files and `requirements.txt` are published.
 
 ## Configuration
 
 Private addresses and passwords must be stored only in `config.py`. Do not commit that file to GitHub.
 
-The public `config.example.py` will use placeholders similar to these:
+The supplied `config.example.py` contains safe placeholders:
 
 ```python
-MQTT_HOST = "192.168.x.x"
-MQTT_PORT = 1883
+MQTT_HOST = "127.0.0.1"
 MQTT_USER = "your_mqtt_username"
 MQTT_PASS = "your_mqtt_password"
 
-AWTRIX_PREFIX = "awtrix_xxxxxx"
+BASE_TOPIC = "awtrix_xxxxxx/custom"
 
 LLAMA_API_URL = "http://127.0.0.1:8080/v1/chat/completions"
 LLAMA_MODEL = "vicky"
-
-OUTPUT_LANGUAGE = "fr"
 ```
 
-The exact configuration fields will be documented together with the V6 source release.
+News preferences, including the French output language, are configured in `preferences.json`.
 
 ## MQTT and AWTRIX
 
@@ -151,7 +145,7 @@ Model paths, GPU-layer counts and context size depend on the computer and availa
 
 ## Running as a service
 
-The working installation runs Vicky through systemd. A cleaned service template will be added under:
+The working installation runs Vicky through systemd. A cleaned service template is included under:
 
 ```text
 systemd/awtrix-news.service
@@ -191,4 +185,4 @@ The repository contains a `LICENSE` file. Please review its terms before using o
 
 ## Contributing
 
-The public source package is still being prepared. Once V6 is complete in this repository, bug reports and carefully scoped improvements will be welcome.
+Bug reports and carefully scoped improvements are welcome. Please do not include MQTT credentials, private addresses, logs or model files in reports or contributions.
