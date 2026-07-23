@@ -1,0 +1,17 @@
+[Unit]
+Description=Vicky 7 Avalon Nano 3S AWTRIX Display
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+Group=YOUR_GROUP
+WorkingDirectory=/opt/vicky-awtrix-news
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 /opt/vicky-awtrix-news/avalon.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
