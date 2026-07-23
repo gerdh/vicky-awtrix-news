@@ -16,6 +16,10 @@ logs/
 .vscode/
 .idea/
 
+# Private local configuration
+config.py
+avalon_config.py
+
 # Alte lokale Entwicklungsstände
 *_before_*.py
 *.backup_*
