@@ -249,7 +249,7 @@ These items are project directions and are not all implemented in the current pu
 
 The current development line is called **V6**.
 
-No public V6 release has been created yet.
+ V6 release has been created.
 
 ## License
 
