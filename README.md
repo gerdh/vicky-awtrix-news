@@ -73,6 +73,36 @@ Other Linux computers may work, but have not yet been documented or tested by th
 
 ## Installation
 
+## Hardware requirements
+
+Vicky performs all AI processing locally using a Large Language Model (LLM). A system capable of running a local LLM is therefore strongly recommended.
+
+### Reference platform
+
+The project is developed and tested on the following hardware:
+
+- NVIDIA Jetson Orin 8 GB
+- Ubuntu Linux
+- llama.cpp with NVIDIA GPU acceleration
+- Ministral or Qwen (GGUF models)
+- Mosquitto MQTT
+- AWTRIX Light
+
+### Other platforms
+
+Other Linux systems may also work, provided they have sufficient performance to run a local LLM.
+
+| Platform | Status |
+|----------|--------|
+| NVIDIA Jetson Orin | ✅ Fully tested (reference platform) |
+| Linux PC with NVIDIA GPU | ⚠️ Expected to work |
+| Apple Silicon (M-series) | ⚠️ Likely to work, not yet tested |
+| Raspberry Pi | ❌ Not recommended for local LLM inference |
+
+Running Vicky without GPU acceleration is possible in principle, but AI response times depend heavily on the selected model and available hardware.
+
+Installation steps
+
 Clone the repository and create a local Python environment:
 
 ```bash
