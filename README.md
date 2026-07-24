@@ -1,8 +1,8 @@
 # Vicky – Local AI News for AWTRIX
 
-Vicky is a self-hosted news editor that collects headlines from RSS feeds, filters and ranks them, rewrites them with a local language model, and publishes compact news bulletins to an AWTRIX Light display through MQTT.
+Vicky is a fully local AI-powered news editor for AWTRIX. It collects RSS headlines, filters duplicates, ranks their relevance, rewrites them with a local language model, translates them into the selected language (english, french or german), and publishes concise news bulletins to an AWTRIX Light via MQTT. The reference platform is an NVIDIA Jetson Orin 8 GB.
 
-The working V6 installation currently runs on an NVIDIA Jetson Orin with Ubuntu Linux, Mosquitto, llama.cpp and an AWTRIX Light. News processing stays on the local network; no cloud AI service is required.
+The working V6 installation currently runs on an NVIDIA Jetson Orin with Ubuntu Linux, Mosquitto, llama.cpp and an AWTRIX Light. News processing stays on the local network; no cloud AI service is required. No software fees apply !
 
 > **Project status:** The cleaned V6 source files are available in this repository. V6 works on the original Jetson Orin installation. Fresh installations on other systems have not yet been fully tested.
 
