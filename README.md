@@ -1,35 +1,52 @@
 # Vicky – Local AI News for AWTRIX
 
-Vicky is a self-hosted news editor that collects headlines from RSS feeds, ranks them, translates and shortens them with a local language model, and publishes compact news bulletins to an AWTRIX Light display through MQTT.
+Vicky is a self-hosted news editor that collects headlines from RSS feeds, filters and ranks them, rewrites them with a local language model, and publishes compact news bulletins to an AWTRIX Light display through MQTT.
 
-The working V6 installation currently runs on an NVIDIA Jetson Orin with Ubuntu Linux, Mosquitto, llama.cpp and an AWTRIX Light. Processing stays on the local network; no cloud AI service is required.
+The working V6 installation currently runs on an NVIDIA Jetson Orin with Ubuntu Linux, Mosquitto, llama.cpp and an AWTRIX Light. News processing stays on the local network; no cloud AI service is required.
 
-> **Project status:** The cleaned V6 source files are now available in this repository. V6 works on the original Jetson Orin installation; fresh installations on other systems have not yet been tested.
+> **Project status:** The cleaned V6 source files are available in this repository. V6 works on the original Jetson Orin installation. Fresh installations on other systems have not yet been fully tested.
 
-## What works today
+## Features
 
-- Reading several RSS news sources
-- Combining headlines in a temporary news pool
-- Filtering old and duplicate stories
-- Ranking stories by importance
-- Translating and shortening headlines into French
-- Local AI processing through a llama.cpp server
-- Publishing rotating messages to AWTRIX Light over MQTT
-- Automatically removing news messages after their display period
-- Manual refresh from the AWTRIX middle button
-- Running continuously as a systemd service
+- Reads multiple RSS news sources
+- Maintains a temporary local news pool
+- Filters duplicate, old and already published stories
+- Ranks stories by importance
+- Uses a local LLM to shorten, translate and edit headlines
+- Supports French, German and English output
+- Publishes rotating custom apps to AWTRIX Light over MQTT
+- Clears news apps automatically after their display period
+- Stores the selected output language persistently
+- Runs continuously as a systemd service
 
-The current feeds include sources from France, Germany and the United Kingdom. Feed selection and output language are configurable in the working installation.
+The current feeds include sources from France, Germany and the United Kingdom. Feed selection and output language are configurable.
 
 ## How it works
 
-1. Vicky checks the configured RSS feeds.
-2. New stories are added to a local pool.
-3. Duplicate and previously displayed items are discarded.
-4. The most relevant stories are selected.
-5. A local LLM translates and edits each headline.
-6. The finished bulletin is sent to AWTRIX through MQTT.
-7. The news topics are cleared automatically after the configured display time.
+```text
+RSS feeds
+    │
+    ▼
+Local news pool
+    │
+    ▼
+Duplicate and history filter
+    │
+    ▼
+Importance ranking
+    │
+    ▼
+Local LLM
+(shorten, edit, translate)
+    │
+    ▼
+MQTT broker
+    │
+    ▼
+AWTRIX Light
+```
+
+Vicky checks the configured feeds, adds new stories to its local pool, removes duplicates and previously displayed items, selects the most relevant stories and sends the finished bulletin to AWTRIX.
 
 ## Requirements
 
@@ -37,7 +54,7 @@ The current V6 setup uses:
 
 - Linux with Python 3
 - An MQTT broker, tested with Mosquitto
-- An AWTRIX Light connected to the same MQTT broker
+- An AWTRIX Light connected to the same broker
 - A local llama.cpp server with an OpenAI-compatible API
 - A compatible GGUF instruction model
 - Network access to the configured RSS feeds
@@ -68,12 +85,11 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-After configuring MQTT, AWTRIX and the local LLM, Vicky will be started with:
+After configuring MQTT, AWTRIX and the local LLM, start Vicky with:
 
 ```bash
 python3 awtrix_news_vicki.py
 ```
-
 
 ## Configuration
 
@@ -92,7 +108,27 @@ LLAMA_API_URL = "http://127.0.0.1:8080/v1/chat/completions"
 LLAMA_MODEL = "vicky"
 ```
 
-News preferences, including the French output language, are configured in `preferences.json`.
+News preferences and feed settings are stored in the JSON configuration files included with the project.
+
+## Language selection
+
+The working V6 installation uses the AWTRIX middle button to cycle through the available output languages:
+
+```text
+FRANCAIS → DEUTSCH → ENGLISH → FRANCAIS
+```
+
+Each button press selects the next language and briefly displays its name on AWTRIX. The choice is stored in:
+
+```text
+cache/current_language.txt
+```
+
+The selected language is used for the **next newly generated bulletin**. Messages that were already generated remain unchanged.
+
+This avoids unnecessary LLM processing when the language is changed and makes the selection persistent across service restarts.
+
+> The public repository may require installation-specific adaptation of the MQTT button topic and helper service. AWTRIX device prefixes and credentials must remain configurable and must never be hard-coded with private values.
 
 ## MQTT and AWTRIX
 
@@ -112,7 +148,7 @@ Example payload:
 
 ```json
 {
-  "text": "Une nouvelle actualité résumée par Vicky.",
+  "text": "A short news message prepared by Vicky.",
   "color": "66CCFF",
   "duration": 15
 }
@@ -128,7 +164,7 @@ Vicky uses the OpenAI-compatible HTTP endpoint provided by llama.cpp:
 http://127.0.0.1:8080/v1/chat/completions
 ```
 
-The working system uses Ministral 3B Instruct as a quantized GGUF model. The model translates incoming headlines into French and rewrites them as short, clear display messages.
+The working system uses Ministral 3B Instruct as a quantized GGUF model. Other instruction-tuned models such as Qwen or Mistral may work when they fit the available memory and follow the requested output format reliably.
 
 A simplified llama.cpp server example is:
 
@@ -151,7 +187,7 @@ The working installation runs Vicky through systemd. A cleaned service template 
 systemd/awtrix-news.service
 ```
 
-This will allow:
+Typical service commands are:
 
 ```bash
 sudo systemctl enable --now awtrix-news.service
@@ -166,16 +202,52 @@ journalctl -u awtrix-news.service -f
 - Private IP addresses are represented by placeholders.
 - `config.py`, logs, caches and model files must remain excluded through `.gitignore`.
 - GGUF model files should not be committed to GitHub.
+- Repository history should be checked for old credentials before public releases.
 
-Before any public release, the repository history should also be checked for old credentials and private addresses.
+## Troubleshooting
+
+### No messages appear on AWTRIX
+
+Check the MQTT connection, AWTRIX prefix and service log:
+
+```bash
+journalctl -u awtrix-news.service -n 100 --no-pager
+```
+
+Subscribe temporarily to the AWTRIX topic tree to verify published messages:
+
+```bash
+mosquitto_sub \
+  -h <MQTT_HOST> \
+  -u <MQTT_USER> \
+  -P <MQTT_PASSWORD> \
+  -t '<AWTRIX_PREFIX>/#' \
+  -v
+```
+
+### The selected language does not affect old messages
+
+This is expected. Language changes apply only to newly generated bulletins. Existing messages are not translated again.
+
+### The LLM is slow or runs out of memory
+
+Use a smaller quantized GGUF model, reduce the context size or lower the number of GPU layers.
 
 ## Project direction
 
-AWTRIX Light is the first working output. The internal design should remain open to additional output modules, including other matrix displays and e-paper devices. These outputs are a future direction and are not implemented in the current public version.
+AWTRIX Light is the first working output. Future versions may add:
+
+- Additional configurable languages
+- Improved topic diversity and regional balance
+- Easier setup of the AWTRIX button service
+- Additional matrix-display or e-paper output modules
+- More installation examples for non-Jetson Linux systems
+
+These items are project directions and are not all implemented in the current public version.
 
 ## Version
 
-The current development line is simply called **V6**.
+The current development line is called **V6**.
 
 No public V6 release has been created yet.
 
@@ -185,4 +257,4 @@ Vicky is released under the [MIT License](LICENSE).
 
 ## Contributing
 
-Bug reports and carefully scoped improvements are welcome. Please do not include MQTT credentials, private addresses, logs or model files in reports or contributions.
+Bug reports and carefully scoped improvements are welcome. Do not include MQTT credentials, private addresses, logs containing secrets or model files in reports or contributions.
