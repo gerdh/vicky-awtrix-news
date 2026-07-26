@@ -2,6 +2,17 @@
 
 All notable changes to Vicky are documented here.
 
+## [7.4.0] - Unreleased
+
+### Added
+- Automatic feed-health reporting during normal news retrieval.
+- Persistent health report in `cache/feed_health.json`.
+- Logging of healthy and failed RSS sources.
+
+### Changed
+- Empty or failed feeds are skipped automatically.
+- A failing feed no longer blocks the remaining news sources.
+
 ## [7.3.0] - Unreleased
 
 ### Planned

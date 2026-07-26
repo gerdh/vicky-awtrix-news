@@ -5,7 +5,7 @@ import json
 import re
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import feedparser
@@ -14,6 +14,7 @@ from colors import COLORS
 from display import clear, publish
 from news_editor_v5 import vicki_topic_edit
 from news_ranker import prioritize_items
+from feed_monitor import FeedHealth, check_feed, write_report
 
 
 MAX_MESSAGES = 6
@@ -29,6 +30,7 @@ FEEDS_FILE = BASE_DIR / "feeds.json"
 POOL_FILE = BASE_DIR / "cache/news_pool_v4.json"
 LAST_BULLETIN_FILE = BASE_DIR / "cache/last_bulletin_v4.txt"
 FORCE_REFRESH_FILE = Path("/tmp/vicky-news-force-refresh")
+FEED_HEALTH_FILE = BASE_DIR / "cache/feed_health.json"
 LOG_FILE = BASE_DIR / "logs/awtrix_news_vicki.log"
 
 
@@ -145,6 +147,7 @@ def load_feeds():
 
 def fetch_items():
     items = []
+    health_results = []
 
     for feed in load_feeds():
         source = feed["name"]
@@ -152,23 +155,24 @@ def fetch_items():
 
         try:
             parsed = feedparser.parse(url)
+            health = check_feed(
+                feed,
+                parser=lambda _url, result=parsed: result,
+            )
+            health_results.append(health)
 
-            if getattr(parsed, "bozo", False):
-                error = getattr(
-                    parsed,
-                    "bozo_exception",
-                    "unknown feed error",
-                )
-                log(f"feed warning {source}: {error}")
+            if not health.ok:
+                log(f"feed SKIP {source}: {health.error}")
+                continue
+
+            if health.warning:
+                log(f"feed warning {source}: {health.warning}")
 
             entries = parsed.entries[:MAX_PER_FEED]
             log(f"feed {source}: {len(entries)} titles")
 
             for entry in entries:
-                title = (
-                    getattr(entry, "title", "") or ""
-                ).strip()
-
+                title = (getattr(entry, "title", "") or "").strip()
                 if not title:
                     continue
 
@@ -176,7 +180,6 @@ def fetch_items():
                     feed["color"],
                     COLORS.get("neutral", "CCCCCC"),
                 )
-
                 items.append(
                     {
                         "id": title_hash(title),
@@ -185,18 +188,35 @@ def fetch_items():
                         "color": color,
                         "language": feed["language"],
                         "priority": feed["priority"],
-                        "first_seen": datetime.now().isoformat(
-                            timespec="seconds"
-                        ),
+                        "first_seen": datetime.now().isoformat(timespec="seconds"),
                         "published": False,
                     }
                 )
 
         except Exception as error:
+            health_results.append(
+                FeedHealth(
+                    name=source,
+                    url=url,
+                    ok=False,
+                    entries=0,
+                    checked_at=datetime.now(timezone.utc).isoformat(
+                        timespec="seconds"
+                    ),
+                    error=f"{type(error).__name__}: {error}",
+                )
+            )
             log(f"feed ERROR {source}: {error}")
 
-    return items
+    try:
+        write_report(FEED_HEALTH_FILE, health_results)
+        healthy = sum(result.ok for result in health_results)
+        failed = len(health_results) - healthy
+        log(f"feed health: {healthy} healthy, {failed} failed")
+    except Exception as error:
+        log(f"feed health report ERROR: {error}")
 
+    return items
 
 def load_pool():
     pool = load_json(POOL_FILE, [])
@@ -482,7 +502,7 @@ def create_button_bulletin(pool):
 def create_bulletin(pool):
     candidates = prepare_candidates(pool)
 
-    log("---- TRIXY VERSION 6 BULLETIN ----")
+    log("---- VICKY VERSION 7.4 BULLETIN ----")
     log(f"candidates: {len(candidates)}")
 
     if not candidates:
@@ -597,7 +617,7 @@ def run_once():
 
 
 def main():
-    log("TRIXY Version 6 started")
+    log("VICKY Version 7.4 started")
 
     log(
         f"RSS poll every {POLL_SECONDS} seconds; "
