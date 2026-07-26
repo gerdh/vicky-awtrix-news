@@ -9,6 +9,14 @@
       "enabled": true
     },
     {
+      "name": "france24",
+      "url": "https://www.france24.com/fr/rss",
+      "color": "france",
+      "language": "fr",
+      "priority": 10,
+      "enabled": true
+    },
+    {
       "name": "spiegel",
       "url": "https://www.spiegel.de/schlagzeilen/tops/index.rss",
       "color": "spiegel",
@@ -21,7 +29,7 @@
       "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
       "color": "bbc",
       "language": "en",
-      "priority": 8,
+      "priority": 9,
       "enabled": true
     },
     {
@@ -33,11 +41,43 @@
       "enabled": true
     },
     {
+      "name": "dw_world",
+      "url": "https://rss.dw.com/rdf/rss-en-world",
+      "color": "neutral",
+      "language": "en",
+      "priority": 9,
+      "enabled": true
+    },
+    {
+      "name": "aljazeera",
+      "url": "https://www.aljazeera.com/xml/rss/all.xml",
+      "color": "neutral",
+      "language": "en",
+      "priority": 9,
+      "enabled": true
+    },
+    {
+      "name": "abc_australia",
+      "url": "https://www.abc.net.au/news/feed/51120/rss.xml",
+      "color": "neutral",
+      "language": "en",
+      "priority": 8,
+      "enabled": true
+    },
+    {
       "name": "lesechos",
       "url": "https://news.google.com/rss/search?q=site%3Alesechos.fr+%28finances+publiques+OR+budget+OR+fiscalite+OR+economie+francaise%29&hl=fr&gl=FR&ceid=FR%3Afr",
       "color": "france",
       "language": "fr",
       "priority": 9,
+      "enabled": true
+    },
+    {
+      "name": "wired",
+      "url": "https://www.wired.com/feed/rss",
+      "color": "neutral",
+      "language": "en",
+      "priority": 7,
       "enabled": true
     }
   ]
