@@ -672,7 +672,7 @@ def run_once():
 
 
 def main():
-    log("VICKY Version 7.4 started")
+    log("VICKY Version 7.6 started")
 
     log(
         f"RSS poll every {POLL_SECONDS} seconds; "

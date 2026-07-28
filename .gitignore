@@ -28,3 +28,6 @@ config.py
 *.bak-*
 *.backup
 *.backup-*
+
+# Local development backups
+*.before-*
