@@ -52,7 +52,7 @@ from language_state import (
 from feed_monitor import FeedHealth, check_feed, write_report
 
 
-MAX_MESSAGES = 8
+MAX_MESSAGES = 6
 MAX_PER_FEED = 5
 
 POLL_SECONDS = 300
@@ -569,24 +569,6 @@ def create_button_bulletin(pool):
 def create_bulletin(pool):
     """Publish safely translated headlines without generative rewriting."""
     candidates = prepare_candidates(pool)
-
-    # Möglichst unterschiedliche Quellen im selben Bulletin
-    diversified = []
-    seen_sources = set()
-
-    for item in candidates:
-        source = item.get("source", "")
-        if source not in seen_sources:
-            diversified.append(item)
-            seen_sources.add(source)
-
-    for item in candidates:
-        if len(diversified) >= MAX_MESSAGES:
-            break
-        if item not in diversified:
-            diversified.append(item)
-
-    candidates = diversified
 
     log("---- VICKY VERSION 7.4 BULLETIN ----")
     log(f"candidates: {len(candidates)}")

@@ -109,8 +109,8 @@ def translate_title(
             [source_tokens],
             beam_size=4,
             max_decoding_length=min(
-                192,
-                max(64, len(source_tokens) * 5),
+                96,
+                max(24, len(source_tokens) * 3),
             ),
             repetition_penalty=1.2,
         )
