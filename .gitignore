@@ -21,3 +21,13 @@ logs/
 *.backup_*
 awtrix_news.py
 awtrix_news_v2.py
+config.py
+
+# Editor- und manuelle Sicherungen
+*.bak
+*.bak-*
+*.backup
+*.backup-*
+
+# Local development backups
+*.before-*

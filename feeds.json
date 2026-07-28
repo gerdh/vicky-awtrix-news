@@ -6,7 +6,17 @@
       "color": "france",
       "language": "fr",
       "priority": 10,
-      "enabled": true
+      "enabled": true,
+      "code": "LM"
+    },
+    {
+      "name": "france24",
+      "url": "https://www.france24.com/fr/rss",
+      "color": "france",
+      "language": "fr",
+      "priority": 10,
+      "enabled": true,
+      "code": "F24"
     },
     {
       "name": "spiegel",
@@ -14,15 +24,17 @@
       "color": "spiegel",
       "language": "de",
       "priority": 10,
-      "enabled": true
+      "enabled": true,
+      "code": "SPG"
     },
     {
       "name": "bbc",
       "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
       "color": "bbc",
       "language": "en",
-      "priority": 8,
-      "enabled": true
+      "priority": 9,
+      "enabled": true,
+      "code": "BBC"
     },
     {
       "name": "guardian",
@@ -30,7 +42,35 @@
       "color": "guardian",
       "language": "en",
       "priority": 8,
-      "enabled": true
+      "enabled": true,
+      "code": "GDN"
+    },
+    {
+      "name": "dw_world",
+      "url": "https://rss.dw.com/rdf/rss-en-world",
+      "color": "neutral",
+      "language": "en",
+      "priority": 9,
+      "enabled": true,
+      "code": "DW"
+    },
+    {
+      "name": "aljazeera",
+      "url": "https://www.aljazeera.com/xml/rss/all.xml",
+      "color": "neutral",
+      "language": "en",
+      "priority": 9,
+      "enabled": true,
+      "code": "AJZ"
+    },
+    {
+      "name": "abc_australia",
+      "url": "https://www.abc.net.au/news/feed/51120/rss.xml",
+      "color": "neutral",
+      "language": "en",
+      "priority": 8,
+      "enabled": true,
+      "code": "ABC"
     },
     {
       "name": "lesechos",
@@ -38,7 +78,17 @@
       "color": "france",
       "language": "fr",
       "priority": 9,
-      "enabled": true
+      "enabled": true,
+      "code": "ECO"
+    },
+    {
+      "name": "wired",
+      "url": "https://www.wired.com/feed/rss",
+      "color": "neutral",
+      "language": "en",
+      "priority": 7,
+      "enabled": true,
+      "code": "WRD"
     }
   ]
 }

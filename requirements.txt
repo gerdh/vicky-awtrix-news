@@ -1,1 +1,6 @@
 feedparser>=6.0,<7
+ctranslate2>=4.4,<5
+sentencepiece>=0.2,<0.3
+transformers>=4.40,<6
+sacremoses>=0.1,<0.2
+huggingface_hub>=0.23,<2

@@ -5,22 +5,58 @@ import json
 import re
 import threading
 import time
-from datetime import datetime, timedelta
+
+LIVE_PREFIX_RE = re.compile(
+    r"""^\s*
+    (?:
+        EN\s+DIRECT
+        |DIRECT
+        |LIVE(?:\s+UPDATES?)?
+        |BREAKING(?:\s+NEWS)?
+        |JUST\s+IN
+        |UPDATE
+        |EN\s+IMAGES?
+        |EN\s+VID[ÉE]O
+    )
+    \s*(?:[:;,.\-–—|]+\s*)?
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
+def clean_news_title(title):
+    """Remove feed prefixes that waste space on the AWTRIX display."""
+    title = re.sub(r"\s+", " ", str(title or "")).strip()
+
+    previous = None
+    while title and title != previous:
+        previous = title
+        title = LIVE_PREFIX_RE.sub("", title).strip()
+
+    return title[:1].upper() + title[1:] if title else title
+
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import feedparser
 
 from colors import COLORS
 from display import clear, publish
-from news_editor_v5 import vicki_topic_edit
 from news_ranker import prioritize_items
+from editor_v76 import edit_items_v76
+from language_state import (
+    cycle_output_language,
+    language_label,
+    load_output_language,
+)
+from feed_monitor import FeedHealth, check_feed, write_report
 
 
-MAX_MESSAGES = 6
+MAX_MESSAGES = 8
 MAX_PER_FEED = 5
 
 POLL_SECONDS = 300
-BULLETIN_SECONDS = 15 * 60
+BULLETIN_SECONDS = 10 * 60
 NEWS_VISIBLE_SECONDS = 10 * 60
 POOL_HOURS = 48
 
@@ -29,6 +65,7 @@ FEEDS_FILE = BASE_DIR / "feeds.json"
 POOL_FILE = BASE_DIR / "cache/news_pool_v4.json"
 LAST_BULLETIN_FILE = BASE_DIR / "cache/last_bulletin_v4.txt"
 FORCE_REFRESH_FILE = Path("/tmp/vicky-news-force-refresh")
+FEED_HEALTH_FILE = BASE_DIR / "cache/feed_health.json"
 LOG_FILE = BASE_DIR / "logs/awtrix_news_vicki.log"
 
 
@@ -145,6 +182,7 @@ def load_feeds():
 
 def fetch_items():
     items = []
+    health_results = []
 
     for feed in load_feeds():
         source = feed["name"]
@@ -152,23 +190,24 @@ def fetch_items():
 
         try:
             parsed = feedparser.parse(url)
+            health = check_feed(
+                feed,
+                parser=lambda _url, result=parsed: result,
+            )
+            health_results.append(health)
 
-            if getattr(parsed, "bozo", False):
-                error = getattr(
-                    parsed,
-                    "bozo_exception",
-                    "unknown feed error",
-                )
-                log(f"feed warning {source}: {error}")
+            if not health.ok:
+                log(f"feed SKIP {source}: {health.error}")
+                continue
+
+            if health.warning:
+                log(f"feed warning {source}: {health.warning}")
 
             entries = parsed.entries[:MAX_PER_FEED]
             log(f"feed {source}: {len(entries)} titles")
 
             for entry in entries:
-                title = (
-                    getattr(entry, "title", "") or ""
-                ).strip()
-
+                title = clean_news_title(getattr(entry, "title", ""))
                 if not title:
                     continue
 
@@ -176,27 +215,47 @@ def fetch_items():
                     feed["color"],
                     COLORS.get("neutral", "CCCCCC"),
                 )
-
                 items.append(
                     {
                         "id": title_hash(title),
                         "source": source,
+                        "source_code": str(
+                            feed.get("code")
+                            or source.upper()[:3]
+                        ),
                         "title": title,
                         "color": color,
                         "language": feed["language"],
                         "priority": feed["priority"],
-                        "first_seen": datetime.now().isoformat(
-                            timespec="seconds"
-                        ),
+                        "first_seen": datetime.now().isoformat(timespec="seconds"),
                         "published": False,
                     }
                 )
 
         except Exception as error:
+            health_results.append(
+                FeedHealth(
+                    name=source,
+                    url=url,
+                    ok=False,
+                    entries=0,
+                    checked_at=datetime.now(timezone.utc).isoformat(
+                        timespec="seconds"
+                    ),
+                    error=f"{type(error).__name__}: {error}",
+                )
+            )
             log(f"feed ERROR {source}: {error}")
 
-    return items
+    try:
+        write_report(FEED_HEALTH_FILE, health_results)
+        healthy = sum(result.ok for result in health_results)
+        failed = len(health_results) - healthy
+        log(f"feed health: {healthy} healthy, {failed} failed")
+    except Exception as error:
+        log(f"feed health report ERROR: {error}")
 
+    return items
 
 def load_pool():
     pool = load_json(POOL_FILE, [])
@@ -300,6 +359,35 @@ def color_for_message(message, items):
     return COLORS.get("neutral", "CCCCCC")
 
 
+def source_code_for_message(message, items):
+    """Return the source code belonging to the selected headline."""
+    message_headlines = message.get("headlines", [])
+
+    for headline in message_headlines:
+        for item in items:
+            if item.get("title") == headline:
+                return str(
+                    item.get("source_code")
+                    or item.get("source", "RSS").upper()[:3]
+                )
+
+    text = str(message.get("text", "")).strip()
+
+    for item in items:
+        title = str(item.get("title", "")).strip()
+
+        if not title:
+            continue
+
+        if title == text or title in text or text in title:
+            return str(
+                item.get("source_code")
+                or item.get("source", "RSS").upper()[:3]
+            )
+
+    return "RSS"
+
+
 def clear_news_topics():
     for index in range(1, 6):
         clear(f"vicky_news_a_{index}")
@@ -330,10 +418,12 @@ def publish_news(messages, items):
             topic = f"vicky_news_b_{index - 5}"
 
         color = color_for_message(message, items)
+        source_code = source_code_for_message(message, items)
+        display_text = f"{source_code}: {text}"
 
         publish(
             topic,
-            text,
+            display_text,
             color=color,
             repeat=2,
         )
@@ -342,7 +432,7 @@ def publish_news(messages, items):
             f"publish {topic}: "
             f"[importance "
             f"{message.get('importance', '?')}] "
-            f"{text}"
+            f"{display_text}"
         )
 
         used = index
@@ -435,113 +525,98 @@ def prepare_button_candidates(pool):
 
 
 def create_button_bulletin(pool):
-    """Edit and publish exactly five fresh button-requested headlines."""
+    """Publish five separate, safely translated headlines."""
     candidates = prepare_button_candidates(pool)
 
-    log("---- VICKY V6 BUTTON BULLETIN ----")
+    log("---- VICKY V7.6 LLM BUTTON BULLETIN ----")
     log(f"button candidates: {len(candidates)}")
 
     if not candidates:
         log("no headlines available for button refresh")
         return False
 
-    messages = []
+    target_language = cycle_output_language()
+    label = language_label(target_language)
 
-    for item in candidates:
-        headline = item["title"]
+    publish(
+        "vicky_language",
+        f"LANGUE: {label}",
+        color="66CCFF",
+        duration=5,
+    )
+    log(f"output language changed to {target_language}")
 
-        try:
-            edited = vicki_topic_edit(
-                [headline],
-                max_topics=1,
-            )
-        except Exception as error:
-            log(f"button edit ERROR: {error}")
-            edited = []
+    time.sleep(5)
+    clear("vicky_language")
 
-        if edited:
-            message = edited[0]
-            message["headlines"] = [headline]
-            messages.append(message)
-        else:
-            messages.append({
-                "topic": "news",
-                "category": "actualité",
-                "importance": 5,
-                "text": headline,
-                "headlines": [headline],
-            })
+    messages = edit_items_v76(
+        candidates,
+        maximum=5,
+        target_language=target_language,
+    )
 
-    publish_news(messages[:5], candidates)
+    if not messages:
+        log("safe editor returned no button messages")
+        return False
+
+    publish_news(messages, candidates)
     save_last_bulletin(time.time())
 
-    log(f"button bulletin published: {len(messages[:5])} messages")
+    log(f"button bulletin published: {len(messages)} messages")
     return True
 
 
 def create_bulletin(pool):
+    """Publish LLM-edited headlines with a safe offline fallback."""
     candidates = prepare_candidates(pool)
 
-    log("---- TRIXY VERSION 6 BULLETIN ----")
+    # Möglichst unterschiedliche Quellen im selben Bulletin
+    diversified = []
+    seen_sources = set()
+
+    for item in candidates:
+        source = item.get("source", "")
+        if source not in seen_sources:
+            diversified.append(item)
+            seen_sources.add(source)
+
+    for item in candidates:
+        if len(diversified) >= MAX_MESSAGES:
+            break
+        if item not in diversified:
+            diversified.append(item)
+
+    candidates = diversified
+
+    log("---- VICKY VERSION 7.6 LLM BULLETIN ----")
     log(f"candidates: {len(candidates)}")
 
     if not candidates:
         log("no unpublished headlines")
         return False
 
-    headlines = [
-        item["title"]
-        for item in candidates
-    ]
+    target_language = load_output_language()
+    log(f"output language: {target_language}")
 
-    for headline in headlines:
-        log(f"  {headline}")
-
-    try:
-        messages = vicki_topic_edit(
-            headlines,
-            max_topics=MAX_MESSAGES,
-        )
-    except Exception as error:
-        log(
-            f"vicki ERROR, "
-            f"fallback to raw headlines: {error}"
-        )
-
-        messages = [
-            {
-                "topic": "news",
-                "category": "actualité",
-                "importance": 5,
-                "text": headline,
-                "headlines": [headline],
-            }
-            for headline in headlines[:MAX_MESSAGES]
-        ]
+    messages = edit_items_v76(
+        candidates,
+        maximum=MAX_MESSAGES,
+        target_language=target_language,
+    )
 
     if not messages:
-        log("vicki returned no messages")
+        log("safe editor returned no messages")
         return False
 
-    log("vicki result:")
-
+    log("safe editor result:")
     for message in messages:
-        log(
-            json.dumps(
-                message,
-                ensure_ascii=False,
-            )
-        )
+        log(json.dumps(message, ensure_ascii=False))
 
     publish_news(messages, candidates)
     mark_published(pool, messages)
     save_last_bulletin(time.time())
 
-    log(
-        f"bulletin published: "
-        f"{len(messages)} messages"
-    )
-
+    log(f"bulletin published: {len(messages)} messages")
     return True
 
 
@@ -597,7 +672,7 @@ def run_once():
 
 
 def main():
-    log("TRIXY Version 6 started")
+    log("VICKY Version 7.6 started")
 
     log(
         f"RSS poll every {POLL_SECONDS} seconds; "
