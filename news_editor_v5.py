@@ -349,7 +349,7 @@ def vicki_topic_edit(headlines, max_topics=6):
         messages = edit_batch(
             batch,
             memory_text=memory_text,
-            maximum=3,
+            maximum=4,
         )
 
         all_messages.extend(messages)

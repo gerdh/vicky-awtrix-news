@@ -43,7 +43,7 @@ import feedparser
 from colors import COLORS
 from display import clear, publish
 from news_ranker import prioritize_items
-from safe_news_editor import edit_items_safely
+from editor_v76 import edit_items_v76
 from language_state import (
     cycle_output_language,
     language_label,
@@ -528,7 +528,7 @@ def create_button_bulletin(pool):
     """Publish five separate, safely translated headlines."""
     candidates = prepare_button_candidates(pool)
 
-    log("---- VICKY V7.4 BUTTON BULLETIN ----")
+    log("---- VICKY V7.6 LLM BUTTON BULLETIN ----")
     log(f"button candidates: {len(candidates)}")
 
     if not candidates:
@@ -549,7 +549,7 @@ def create_button_bulletin(pool):
     time.sleep(5)
     clear("vicky_language")
 
-    messages = edit_items_safely(
+    messages = edit_items_v76(
         candidates,
         maximum=5,
         target_language=target_language,
@@ -567,7 +567,7 @@ def create_button_bulletin(pool):
 
 
 def create_bulletin(pool):
-    """Publish safely translated headlines without generative rewriting."""
+    """Publish LLM-edited headlines with a safe offline fallback."""
     candidates = prepare_candidates(pool)
 
     # Möglichst unterschiedliche Quellen im selben Bulletin
@@ -588,7 +588,7 @@ def create_bulletin(pool):
 
     candidates = diversified
 
-    log("---- VICKY VERSION 7.4 BULLETIN ----")
+    log("---- VICKY VERSION 7.6 LLM BULLETIN ----")
     log(f"candidates: {len(candidates)}")
 
     if not candidates:
@@ -598,7 +598,7 @@ def create_bulletin(pool):
     target_language = load_output_language()
     log(f"output language: {target_language}")
 
-    messages = edit_items_safely(
+    messages = edit_items_v76(
         candidates,
         maximum=MAX_MESSAGES,
         target_language=target_language,
