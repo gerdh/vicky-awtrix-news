@@ -5,6 +5,36 @@ import json
 import re
 import threading
 import time
+
+LIVE_PREFIX_RE = re.compile(
+    r"""^\s*
+    (?:
+        EN\s+DIRECT
+        |DIRECT
+        |LIVE(?:\s+UPDATES?)?
+        |BREAKING(?:\s+NEWS)?
+        |JUST\s+IN
+        |UPDATE
+        |EN\s+IMAGES?
+        |EN\s+VID[ÉE]O
+    )
+    \s*(?:[:;,.\-–—|]+\s*)?
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
+def clean_news_title(title):
+    """Remove feed prefixes that waste space on the AWTRIX display."""
+    title = re.sub(r"\s+", " ", str(title or "")).strip()
+
+    previous = None
+    while title and title != previous:
+        previous = title
+        title = LIVE_PREFIX_RE.sub("", title).strip()
+
+    return title[:1].upper() + title[1:] if title else title
+
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -12,8 +42,13 @@ import feedparser
 
 from colors import COLORS
 from display import clear, publish
-from news_editor_v5 import vicki_topic_edit
 from news_ranker import prioritize_items
+from safe_news_editor import edit_items_safely
+from language_state import (
+    cycle_output_language,
+    language_label,
+    load_output_language,
+)
 from feed_monitor import FeedHealth, check_feed, write_report
 
 
@@ -172,7 +207,7 @@ def fetch_items():
             log(f"feed {source}: {len(entries)} titles")
 
             for entry in entries:
-                title = (getattr(entry, "title", "") or "").strip()
+                title = clean_news_title(getattr(entry, "title", ""))
                 if not title:
                     continue
 
@@ -455,51 +490,49 @@ def prepare_button_candidates(pool):
 
 
 def create_button_bulletin(pool):
-    """Edit and publish exactly five fresh button-requested headlines."""
+    """Publish five separate, safely translated headlines."""
     candidates = prepare_button_candidates(pool)
 
-    log("---- VICKY V6 BUTTON BULLETIN ----")
+    log("---- VICKY V7.4 BUTTON BULLETIN ----")
     log(f"button candidates: {len(candidates)}")
 
     if not candidates:
         log("no headlines available for button refresh")
         return False
 
-    messages = []
+    target_language = cycle_output_language()
+    label = language_label(target_language)
 
-    for item in candidates:
-        headline = item["title"]
+    publish(
+        "vicky_language",
+        f"LANGUE: {label}",
+        color="66CCFF",
+        duration=5,
+    )
+    log(f"output language changed to {target_language}")
 
-        try:
-            edited = vicki_topic_edit(
-                [headline],
-                max_topics=1,
-            )
-        except Exception as error:
-            log(f"button edit ERROR: {error}")
-            edited = []
+    time.sleep(5)
+    clear("vicky_language")
 
-        if edited:
-            message = edited[0]
-            message["headlines"] = [headline]
-            messages.append(message)
-        else:
-            messages.append({
-                "topic": "news",
-                "category": "actualité",
-                "importance": 5,
-                "text": headline,
-                "headlines": [headline],
-            })
+    messages = edit_items_safely(
+        candidates,
+        maximum=5,
+        target_language=target_language,
+    )
 
-    publish_news(messages[:5], candidates)
+    if not messages:
+        log("safe editor returned no button messages")
+        return False
+
+    publish_news(messages, candidates)
     save_last_bulletin(time.time())
 
-    log(f"button bulletin published: {len(messages[:5])} messages")
+    log(f"button bulletin published: {len(messages)} messages")
     return True
 
 
 def create_bulletin(pool):
+    """Publish safely translated headlines without generative rewriting."""
     candidates = prepare_candidates(pool)
 
     log("---- VICKY VERSION 7.4 BULLETIN ----")
@@ -509,59 +542,28 @@ def create_bulletin(pool):
         log("no unpublished headlines")
         return False
 
-    headlines = [
-        item["title"]
-        for item in candidates
-    ]
+    target_language = load_output_language()
+    log(f"output language: {target_language}")
 
-    for headline in headlines:
-        log(f"  {headline}")
-
-    try:
-        messages = vicki_topic_edit(
-            headlines,
-            max_topics=MAX_MESSAGES,
-        )
-    except Exception as error:
-        log(
-            f"vicki ERROR, "
-            f"fallback to raw headlines: {error}"
-        )
-
-        messages = [
-            {
-                "topic": "news",
-                "category": "actualité",
-                "importance": 5,
-                "text": headline,
-                "headlines": [headline],
-            }
-            for headline in headlines[:MAX_MESSAGES]
-        ]
+    messages = edit_items_safely(
+        candidates,
+        maximum=MAX_MESSAGES,
+        target_language=target_language,
+    )
 
     if not messages:
-        log("vicki returned no messages")
+        log("safe editor returned no messages")
         return False
 
-    log("vicki result:")
-
+    log("safe editor result:")
     for message in messages:
-        log(
-            json.dumps(
-                message,
-                ensure_ascii=False,
-            )
-        )
+        log(json.dumps(message, ensure_ascii=False))
 
     publish_news(messages, candidates)
     mark_published(pool, messages)
     save_last_bulletin(time.time())
 
-    log(
-        f"bulletin published: "
-        f"{len(messages)} messages"
-    )
-
+    log(f"bulletin published: {len(messages)} messages")
     return True
 
 

@@ -6,11 +6,14 @@ All notable changes to Vicky are documented here.
 
 ### Added
 - Automatic feed-health reporting during normal news retrieval.
+- Deterministic offline translation from German and English to French with CTranslate2 and OPUS-MT.
+- Safe one-headline-per-message editor with automatic fallback to the original title.
 - Persistent health report in `cache/feed_health.json`.
 - Logging of healthy and failed RSS sources.
 
 ### Changed
 - Empty or failed feeds are skipped automatically.
+- Generative headline rewriting is no longer used for live bulletins because factual fidelity has priority.
 - A failing feed no longer blocks the remaining news sources.
 
 ## [7.3.0] - Unreleased
