@@ -1,27 +1,24 @@
 # Vicky – Local AI News for AWTRIX
 
-Vicky is a fully local AI-powered news editor for AWTRIX. It collects RSS headlines, filters duplicates, ranks their relevance, rewrites them with a local language model, translates them into one of the supported languages (French, German or English), and publishes concise news bulletins to an AWTRIX Light via MQTT. The reference platform is an NVIDIA Jetson Orin 8 GB.
+Vicky is a fully local AI-powered news editor for AWTRIX Light. It collects RSS headlines, filters and ranks them, edits or translates them locally, and publishes concise multilingual news bulletins over MQTT.
 
-Vicky is designed for users who want complete local control over AI-generated news. No cloud AI services are required; all processing is performed locally using a compatible Large Language Model (LLM).
+**Current public version: V7.6**
 
-The working V6 installation currently runs on an NVIDIA Jetson Orin with Ubuntu Linux, Mosquitto, llama.cpp and an AWTRIX Light. News processing stays on the local network; no cloud AI service is required. No cloud subscription or AI service fees are required.
+The reference installation runs on an NVIDIA Jetson Orin with Ubuntu Linux, Mosquitto, llama.cpp and an AWTRIX Light. News processing and AI editing stay local; no cloud AI service is required.
 
-**Project status:** The cleaned V6 source files are available in this repository. V6 works on the original Jetson Orin installation. Fresh installations on other systems have not yet been fully tested.
+## V7 highlights
 
-## Features
-
-- Reads multiple RSS news sources
-- Maintains a temporary local news pool
-- Filters duplicate, old and already published stories
-- Ranks stories by importance
-- Uses a local LLM to shorten, translate and edit headlines
-- Supports French, German and English output
-- Publishes rotating custom apps to AWTRIX Light over MQTT
-- Clears news apps automatically after their display period
-- Stores the selected output language persistently
-- Runs continuously as a systemd service
-
-The current feeds include sources from France, Germany and the United Kingdom. Feed selection and output language are configurable.
+- Multilingual output in French, German and English
+- Persistent output-language selection
+- Shared news pool with ranking and duplicate/history filtering
+- Safe multilingual editorial engine with fallback to source headlines
+- Automatic RSS feed-health monitoring and failure isolation
+- Configurable feed catalogue
+- Source labels on AWTRIX messages
+- Button-triggered bulletin generation
+- Persistent replay/bulletin state
+- Automatic clearing of AWTRIX news apps
+- Continuous systemd service operation
 
 ## How it works
 
@@ -29,63 +26,65 @@ The current feeds include sources from France, Germany and the United Kingdom. F
 RSS feeds
     │
     ▼
+Feed health checks
+    │
+    ▼
 Local news pool
     │
     ▼
-Duplicate and history filter
+Duplicate/history filtering
     │
     ▼
 Importance ranking
     │
     ▼
-Local LLM
-(shorten, edit, translate)
+Vicky V7.6 editorial engine
+(local LLM + safe fallback)
     │
     ▼
-MQTT broker
+MQTT
     │
     ▼
 AWTRIX Light
 ```
 
-Vicky checks the configured feeds, adds new stories to its local pool, removes duplicates and previously displayed items, selects the most relevant stories and sends the finished bulletin to AWTRIX.
+Vicky periodically reads the configured feeds, skips broken sources, adds fresh stories to its local pool, selects the most relevant items and publishes the finished bulletin to AWTRIX.
 
 ## Requirements
 
-The current V6 setup uses:
-
 - Linux with Python 3
-- An MQTT broker, tested with Mosquitto
-- An AWTRIX Light connected to the same broker
+- Mosquitto or another MQTT broker
+- AWTRIX Light connected to the broker
 - A local llama.cpp server with an OpenAI-compatible API
 - A compatible GGUF instruction model
 - Network access to the configured RSS feeds
 - systemd for continuous operation
 
-### Tested platform
-
-- NVIDIA Jetson Nano Super Orin 8 GB
-- Ubuntu Linux
-- llama.cpp with NVIDIA GPU acceleration
-- Ministral 3B Instruct in GGUF format
-- Mosquitto
-- AWTRIX Light
-
-Other Linux computers may work, but have not yet been documented or tested by this project.
-
-## Requirements
-
-Vicky performs all AI processing locally using a Large Language Model (LLM). A system capable of running a local LLM is therefore strongly recommended.
-
-### Reference platform
-
-The project is developed and tested on the following hardware:
+## Reference platform
 
 - NVIDIA Jetson Orin 8 GB
 - Ubuntu Linux
 - llama.cpp with NVIDIA GPU acceleration
-- Ministral 3B Instruct or other Mistral/Qwen GGUF models
+- Ministral 3B Instruct or compatible Mistral/Qwen GGUF model
 - Mosquitto MQTT
 - AWTRIX Light
 
-(remaining content unchanged from current README)
+## Main V7 files
+
+- `awtrix_news_vicki.py` – main news service
+- `editor_v76.py` – V7.6 multilingual editorial engine
+- `language_state.py` – persistent FR/DE/EN language state
+- `feed_monitor.py` – RSS health monitoring
+- `feeds.json` – feed catalogue
+- `news_ranker.py` – ranking and selection
+- `safe_news_editor.py` – safe editorial fallback
+
+## Version history
+
+V6 established the stable bulletin workflow. V7 added the shared news engine, persistent multilingual operation, safer editorial processing, feed resilience and the V7.6 multilingual editor.
+
+See `CHANGELOG.md` for details.
+
+## Status
+
+V7.6 is the current public source version in this repository. It is developed around the original Jetson Orin installation; fresh installations on other systems may require adaptation and have not been exhaustively tested.
