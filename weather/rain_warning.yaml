@@ -1,10 +1,10 @@
 # Vicky 8 - AWTRIX rain warning for Billiat
-# Extracted from the currently running Home Assistant automation.
-# Checks Météo-France next_rain every 5 minutes and publishes a short AWTRIX warning.
+# Uses the shared Vicky language state exposed by MQTT Discovery as
+# sensor.vicky_language. Falls back to German if the sensor is unavailable.
 
 - id: '1787248345937'
   alias: AWTRIX Regenwarnung Billiat
-  description: Météo-France Regenvorhersage auf AWTRIX
+  description: Météo-France rain forecast on AWTRIX in the selected Vicky language
   triggers:
     - trigger: time_pattern
       minutes: /5
@@ -35,6 +35,45 @@
           {% endfor %}
           {{ ns.type }}
 
+        vicky_language: >-
+          {% set lang = states('sensor.vicky_language') | lower | trim %}
+          {{ lang if lang in ['de', 'en', 'fr'] else 'de' }}
+
+        rain_text: >-
+          {% set mins = rain_minutes | int(0) %}
+          {% set kind = rain_type | trim %}
+          {% if vicky_language == 'fr' %}
+            {% if mins == 0 %}
+              Pluie maintenant
+            {% elif kind == 'Pluie forte' %}
+              Forte pluie dans {{ mins }} min.
+            {% elif kind == 'Pluie modérée' %}
+              Pluie dans {{ mins }} min.
+            {% else %}
+              Pluie faible dans {{ mins }} min.
+            {% endif %}
+          {% elif vicky_language == 'en' %}
+            {% if mins == 0 %}
+              Rain now
+            {% elif kind == 'Pluie forte' %}
+              Heavy rain in {{ mins }} min.
+            {% elif kind == 'Pluie modérée' %}
+              Rain in {{ mins }} min.
+            {% else %}
+              Light rain in {{ mins }} min.
+            {% endif %}
+          {% else %}
+            {% if mins == 0 %}
+              Regen jetzt
+            {% elif kind == 'Pluie forte' %}
+              Starker Regen in {{ mins }} Min.
+            {% elif kind == 'Pluie modérée' %}
+              Regen in {{ mins }} Min.
+            {% else %}
+              Leichter Regen in {{ mins }} Min.
+            {% endif %}
+          {% endif %}
+
     - choose:
         - conditions:
             - condition: template
@@ -45,7 +84,7 @@
                 topic: awtrix_3e6014/custom/rain
                 payload: >-
                   {
-                    "text": "{% if rain_minutes | int == 0 %}Regen jetzt{% elif rain_type | trim == 'Pluie forte' %}Starker Regen in {{ rain_minutes | trim }} Min.{% elif rain_type | trim == 'Pluie modérée' %}Regen in {{ rain_minutes | trim }} Min.{% else %}Leichter Regen in {{ rain_minutes | trim }} Min.{% endif %}",
+                    "text": {{ rain_text | trim | tojson }},
                     "duration": 10,
                     "color": "FF0000"
                   }
