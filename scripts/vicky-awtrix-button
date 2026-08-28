@@ -1,0 +1,43 @@
+#!/bin/bash
+set -u
+
+VICKY_DIR="${VICKY_DIR:-/home/gerd/vicky8}"
+AWTRIX_UID="${AWTRIX_UID:-awtrix_3e6014}"
+MQTT_HOST="${MQTT_HOST:-localhost}"
+
+/usr/bin/mosquitto_sub \
+  -h "$MQTT_HOST" \
+  -v \
+  -t "$AWTRIX_UID/stats/buttonLeft" \
+  -t "$AWTRIX_UID/stats/buttonRight" |
+while read -r topic value
+do
+    if [ "$value" != "1" ]; then
+        continue
+    fi
+
+    case "$topic" in
+        "$AWTRIX_UID/stats/buttonLeft")
+            touch /tmp/vicky-news-force-refresh
+            ;;
+
+        "$AWTRIX_UID/stats/buttonRight")
+            cd "$VICKY_DIR" || continue
+            lang=$(/usr/bin/python3 -c 'from language_state import cycle_output_language; print(cycle_output_language())')
+            echo "Vicky language switched to: $lang"
+
+            case "$lang" in
+                fr) label="FRANÇAIS" ;;
+                de) label="DEUTSCH" ;;
+                en) label="ENGLISH" ;;
+                *)  label="$lang" ;;
+            esac
+
+            /usr/bin/mosquitto_pub -h "$MQTT_HOST" \
+              -t "$AWTRIX_UID/notify" \
+              -m "{\"text\":\"SPRACHE: $label\",\"duration\":3}"
+
+            touch /tmp/vicky-news-force-refresh
+            ;;
+    esac
+done
