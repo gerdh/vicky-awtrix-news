@@ -74,7 +74,7 @@ Current bulletin behavior:
 
 ### Language and AWTRIX buttons
 
-The V8 button controller is versioned as `scripts/vicky-awtrix-button`.
+The V8 button controller is versioned as `scripts/vicky-awtrix-button` and its service definition as `systemd/vicky-awtrix-button.service`.
 
 - **left short press:** force a fresh news bulletin
 - **right short press:** cycle output language `FR → DE → EN → FR`, then refresh the news
@@ -98,7 +98,7 @@ The same logic covers light rain and rain starting immediately.
 
 ### Victron display
 
-The current production Victron AWTRIX script has been captured from the running Orin installation and is versioned as `victron/awtrix_victron.py`.
+The current production Victron AWTRIX script has been captured from the running Orin installation and is versioned as `victron/awtrix_victron.py`. The V8 service definition is `systemd/awtrix-victron.service`.
 
 It connects from the Orin to the Cerbo/GX system over SSH, reads Victron D-Bus values and publishes compact AWTRIX pages independently from the News and Rain services.
 
@@ -110,9 +110,7 @@ Current displayed pages are:
 
 The script also reads house-consumption data from `/Ac/Consumption/L1/Power`, but the current production loop does not publish a `Home` page. V8 preserves the live behavior rather than reintroducing an older display path by assumption.
 
-MQTT credentials are not stored inside the Victron source file in V8. The script shares the normal Vicky `config.py` values. Cerbo host, user and SSH-key path can be overridden with the environment variables `VICKY_CERBO_HOST`, `VICKY_CERBO_USER` and `VICKY_CERBO_SSH_KEY`.
-
-The production systemd unit has also been captured as `systemd/awtrix-victron.service`. The V8 unit keeps the live restart/network behavior while pointing to `/home/gerd/vicky8/victron/awtrix_victron.py`.
+MQTT credentials are not stored inside the Victron source file in V8. The script shares the normal Vicky `config.py` values. Cerbo host, user and SSH-key path can be overridden with environment variables.
 
 ## Main V8 files
 
@@ -126,8 +124,10 @@ The production systemd unit has also been captured as `systemd/awtrix-victron.se
 - `display.py` – MQTT/AWTRIX publishing helpers
 - `scripts/vicky-awtrix-button` – left/right AWTRIX button controller and shared MQTT language state
 - `weather/rain_warning.yaml` – multilingual Home Assistant rain warning
-- `victron/awtrix_victron.py` – production Victron AWTRIX display logic
-- `systemd/awtrix-victron.service` – V8 Victron service definition
+- `victron/awtrix_victron.py` – current production Victron AWTRIX display logic
+- `systemd/awtrix-news.service` – V8 news service
+- `systemd/vicky-awtrix-button.service` – V8 button listener
+- `systemd/awtrix-victron.service` – V8 Victron display service
 
 ## Requirements
 
@@ -168,10 +168,8 @@ Hostnames, addresses, credentials, AWTRIX UIDs and Home Assistant entity IDs are
 
 V8 is intentionally a cleanup rather than another compatibility layer.
 
-Removed from the V8 runtime path are the old generative editorial chain and parallel historical source trees, including the V7.6 `editor_v76.py` path. V7 remains available on the previous branch/main history as a rollback reference while `v8-clean` is completed and tested.
+Removed from the V8 runtime path are the old generative editorial chain, the unused collectors abstraction, the obsolete separate pool manager and version-specific patch helpers. V7 remains available on the previous branch/main history as a rollback reference while `v8-clean` is tested.
 
-The production News, Button, Rain and Victron files are now represented in the V8 branch. The running Orin installation should still not be switched from `/home/gerd/vicky7` until the V8 tree has been deployed in parallel under `/home/gerd/vicky8` and all services have been tested together.
+The repository side of V8 now contains the News, Button, Rain and Victron runtime components plus their service definitions. The remaining step before declaring V8 live is a parallel installation under `/home/gerd/vicky8` on the Orin and controlled end-to-end validation before switching the production services.
 
-## Version history
-
-See `CHANGELOG.md` for the V7 history and the V8 cleanup work.
+See `ROADMAP.md` for the deployment checklist and `CHANGELOG.md` for version history.
