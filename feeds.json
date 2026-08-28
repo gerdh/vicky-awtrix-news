@@ -82,6 +82,15 @@
       "code": "ECO"
     },
     {
+      "name": "figaro",
+      "url": "https://www.lefigaro.fr/rss/figaro_actualites.xml",
+      "color": "france",
+      "language": "fr",
+      "priority": 10,
+      "enabled": true,
+      "code": "FIG"
+    },
+    {
       "name": "wired",
       "url": "https://www.wired.com/feed/rss",
       "color": "neutral",
