@@ -1,15 +1,16 @@
 [Unit]
-Description=Vicky V6 AWTRIX News Service
-After=network-online.target
+Description=Vicky V8 AWTRIX News Service
+After=network-online.target mosquitto.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=YOUR_LINUX_USER
-WorkingDirectory=/opt/vicky-awtrix-news
-ExecStart=/opt/vicky-awtrix-news/.venv/bin/python /opt/vicky-awtrix-news/awtrix_news_vicki.py
-Restart=on-failure
+User=gerd
+WorkingDirectory=/home/gerd/vicky8
+ExecStart=/home/gerd/vicky8/.venv/bin/python /home/gerd/vicky8/awtrix_news_vicki.py
+Restart=always
 RestartSec=10
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
