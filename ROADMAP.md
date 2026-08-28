@@ -1,65 +1,46 @@
-# Roadmap
+# Vicky 8 Roadmap
 
-## V7.1 — Foundation
+Vicky 8 consolidates the actively used AWTRIX functions on the Jetson Orin into one clean, documented project while keeping News, Weather and Victron as independent services.
 
-Status: documented and in use.
+## V8.0 — Clean production baseline
 
-- Stable systemd service
-- Local LLM editing and translation
-- MQTT publication to AWTRIX
-- Forced bulletin refresh by button
-- Automatic clearing after the display window
+Status: implementation captured in `v8-clean`; parallel Orin deployment and validation still pending.
 
-## V7.2 — News Engine
+Included:
 
-Status: documented from the current development state.
+- deterministic multilingual news pipeline
+- local CTranslate2 / OPUS-MT translation for FR, DE and EN
+- persistent shared language state
+- left AWTRIX button for news refresh
+- right AWTRIX button for `FR → DE → EN → FR`
+- middle AWTRIX button left to AWTRIX itself
+- multilingual Météo-France rain warning through Home Assistant
+- Victron SmartSolar, battery SoC and grid import/export AWTRIX pages
+- version-controlled systemd units for News, Buttons and Victron
+- active feed catalogue synchronized with the Orin
+- no generative LLM editorial dependency in the V8 runtime
 
-- Shared news pool
-- Ranking before bulletin creation
-- Replay cache
-- Persistent language selection
-- Improved scheduling and logging
+## Before V8 becomes the live installation
 
-Remaining engine work:
+- install the branch in parallel under `/home/gerd/vicky8`
+- create the V8 virtual environment and install requirements
+- copy local `config.py` without committing credentials
+- preserve or intentionally migrate the selected language and news cache state
+- syntax/import-test the News and Victron Python programs
+- test the button listener without stopping V7
+- validate FR/DE/EN news output
+- validate FR/DE/EN rain warnings
+- validate SmartSolar, battery and grid AWTRIX pages
+- switch systemd services only after the parallel tests succeed
+- keep V7 available as rollback until V8 has run stably
 
-- Enforce a maximum pool size
-- Remove expired stories reliably
-- Improve cross-source duplicate detection
-- Add feed health statistics
-- Move feeds and priorities into configuration files
+## Post-8.0 improvements
 
-## V7.3 — Global News
+Only after the clean V8 baseline is stable:
 
-Status: current development branch.
+- improve cross-source duplicate detection if needed
+- refine feed ranking and source diversity
+- add explicit health/status reporting for the three independent Vicky services
+- consider additional AWTRIX information tiles only when they do not complicate the core stack
 
-Primary goal: expand coverage while keeping the AWTRIX bulletin concise and current.
-
-Planned first source groups:
-
-- World: BBC, France 24, Deutsche Welle, Al Jazeera, ABC Australia
-- France: Le Monde/France feed, Les Echos and additional reliable French feeds
-- Germany: Spiegel, Tagesschau and Deutsche Welle
-- Technology and AI: Wired, Ars Technica, The Register and official AI project feeds
-- Science and space: NASA, ESA and selected science publications
-- Personal interests: energy, solar, Bitcoin/mining and Tesla
-
-Selection principles:
-
-- Prefer reliable feeds with stable RSS or Atom endpoints.
-- Do not allow one source to dominate a bulletin.
-- Merge reports about the same event.
-- Prioritize current, consequential and personally relevant stories.
-- Keep the final bulletin small enough for AWTRIX.
-
-## V7.4 — Information Hub
-
-- Currency, gold and Bitcoin tiles
-- Weather and outdoor temperature
-- Victron and solar status
-- Avalon miner status
-- Tesla status
-- Shared display-priority rules for news and live data
-
-## V8 — Personal Information Assistant
-
-Long-term direction: a local system that selects the most useful information for the user and can publish it to AWTRIX and other interfaces.
+Historical V7 release notes remain under `docs/releases/` and in `CHANGELOG.md` for reference; they are not part of the V8 runtime architecture.
