@@ -10,7 +10,7 @@ Vicky 8 covers three functional areas:
 - local rain warnings from Home Assistant / Météo-France
 - the Victron energy display stack
 
-The news and rain-warning components share one persistent output language: French, German or English. The compact Victron labels (`Sol`, `Batt`, `In`, `Out`, `Home`) stay language-neutral because they are intentionally short and widely understandable.
+The news and rain-warning components share one persistent output language: French, German or English. The compact Victron labels (`Sol`, `Batt`, `In`, `Out`) stay language-neutral because they are intentionally short and widely understandable.
 
 ## V8 design goals
 
@@ -98,16 +98,21 @@ The same logic covers light rain and rain starting immediately.
 
 ### Victron display
 
-The reference Orin installation also runs an independent `awtrix-victron.service` which reads the Victron system and displays compact AWTRIX pages for solar power, battery state of charge, grid import/export and house consumption.
+The current production Victron AWTRIX script has been captured from the running Orin installation and is versioned as `victron/awtrix_victron.py`.
 
-Typical labels are:
+It connects from the Orin to the Cerbo/GX system over SSH, reads Victron D-Bus values and publishes compact AWTRIX pages independently from the News and Rain services.
 
-- `Sol 694W`
-- `Batt 73%`
-- `In 69W` / `Out 350W`
-- `Home 2515W`
+Current displayed pages are:
 
-The Victron runtime is intentionally independent of the news and weather services. Its current production script and service definition are being migrated into the V8 repository from the running Orin installation; V8 documentation treats it as part of the stack, but the exact production files should only be committed after comparison with the live system.
+- SmartSolar power when output is at least 100 W: `Sol 694W`
+- battery state of charge: `Batt 73%`
+- grid import/export: `In 69W` / `Out 350W`
+
+The script also reads house-consumption data from `/Ac/Consumption/L1/Power`, but the current production loop does not publish a `Home` page. V8 preserves the live behavior rather than reintroducing an older display path by assumption.
+
+MQTT credentials are not stored inside the Victron source file in V8. The script shares the normal Vicky `config.py` values. Cerbo host, user and SSH-key path can be overridden with environment variables.
+
+The current `awtrix-victron.service` unit still needs to be captured from the Orin before the migration is considered complete.
 
 ## Main V8 files
 
@@ -121,8 +126,7 @@ The Victron runtime is intentionally independent of the news and weather service
 - `display.py` – MQTT/AWTRIX publishing helpers
 - `scripts/vicky-awtrix-button` – left/right AWTRIX button controller and shared MQTT language state
 - `weather/rain_warning.yaml` – multilingual Home Assistant rain warning
-
-Victron files will be added after the live `awtrix_victron.py` and `awtrix-victron.service` have been captured and verified.
+- `victron/awtrix_victron.py` – current production Victron AWTRIX display logic
 
 ## Requirements
 
@@ -144,6 +148,7 @@ Victron files will be added after the live `awtrix_victron.py` and `awtrix-victr
 ### Victron display
 
 - network access from the Orin to the Victron GX / Cerbo system
+- passwordless SSH key access from the Orin to the GX device
 - working Victron D-Bus values on the GX device
 - MQTT access to the AWTRIX broker
 
@@ -164,7 +169,7 @@ V8 is intentionally a cleanup rather than another compatibility layer.
 
 Removed from the V8 runtime path are the old generative editorial chain and parallel historical source trees, including the V7.6 `editor_v76.py` path. V7 remains available on the previous branch/main history as a rollback reference while `v8-clean` is completed and tested.
 
-The running Orin installation should not be switched to V8 until the News, Button, Rain and Victron production files have all been captured, reviewed and tested together.
+The running Orin installation should not be switched to V8 until the News, Button, Rain and Victron production files and service definitions have all been captured, reviewed and tested together.
 
 ## Version history
 
