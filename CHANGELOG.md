@@ -2,6 +2,38 @@
 
 All notable changes to Vicky are documented here.
 
+## [8.0.0-dev] - 2026-08-28
+
+### Added
+- New `v8-clean` development line for a clean Vicky 8 architecture.
+- Versioned AWTRIX button controller in `scripts/vicky-awtrix-button`.
+- Shared retained MQTT language state for French, German and English output.
+- Home Assistant MQTT Discovery for the selected Vicky language.
+- Multilingual Billiat rain warning in `weather/rain_warning.yaml` using the Météo-France `next_rain` sensor.
+- Figaro added to the active feed catalogue used by the running Orin installation.
+- Vicky 8 documentation covering News, Buttons, Rain and the independent Victron display stack.
+
+### Changed
+- News editing now uses the deterministic `safe_news_editor` path directly.
+- Offline CTranslate2/OPUS-MT translation is the active multilingual translation layer.
+- Button-triggered news refresh no longer changes the language inside the news process itself.
+- Right AWTRIX button owns the language cycle `FR → DE → EN → FR`.
+- Left AWTRIX button remains the manual news refresh action.
+- Middle AWTRIX button is reserved for AWTRIX and is not handled by Vicky.
+- Rain warnings now follow the same selected output language as the news bulletins.
+- Victron labels remain intentionally language-neutral (`Sol`, `Batt`, `In`, `Out`, `Home`).
+
+### Removed
+- V7.6 `editor_v76.py` generative editorial path from the V8 branch.
+- Old `news_editor_v5.py` path from the V8 branch.
+- Parallel historical `src/` source tree from the V8 branch.
+- Legacy llama.cpp `vicki.py` client and LLM configuration from the V8 runtime configuration.
+
+### Migration status
+- The running `/home/gerd/vicky7` installation on the Orin has not yet been switched to V8.
+- The production Victron script and `awtrix-victron.service` still need to be captured from the live Orin and committed after verification.
+- V7/main remains the rollback reference while `v8-clean` is completed and tested.
+
 ## [7.6.0] - 2026-07-28
 
 ### Added
