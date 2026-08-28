@@ -1,0 +1,16 @@
+[Unit]
+Description=AWTRIX Victron Tiles
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gerd
+WorkingDirectory=/home/gerd/vicky8
+ExecStart=/usr/bin/python3 /home/gerd/vicky8/victron/awtrix_victron.py
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
