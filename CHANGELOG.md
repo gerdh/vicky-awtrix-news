@@ -10,6 +10,7 @@ All notable changes to Vicky are documented here.
 - Shared retained MQTT language state for French, German and English output.
 - Home Assistant MQTT Discovery for the selected Vicky language.
 - Multilingual Billiat rain warning in `weather/rain_warning.yaml` using the Météo-France `next_rain` sensor.
+- Current production Victron AWTRIX display script captured from the Orin as `victron/awtrix_victron.py`.
 - Figaro added to the active feed catalogue used by the running Orin installation.
 - Vicky 8 documentation covering News, Buttons, Rain and the independent Victron display stack.
 
@@ -21,7 +22,9 @@ All notable changes to Vicky are documented here.
 - Left AWTRIX button remains the manual news refresh action.
 - Middle AWTRIX button is reserved for AWTRIX and is not handled by Vicky.
 - Rain warnings now follow the same selected output language as the news bulletins.
-- Victron labels remain intentionally language-neutral (`Sol`, `Batt`, `In`, `Out`, `Home`).
+- Victron labels remain intentionally language-neutral (`Sol`, `Batt`, `In`, `Out`).
+- Victron MQTT credentials are no longer hard-coded in the versioned source and instead use the shared Vicky configuration.
+- The V8 Victron script preserves the current live Orin behavior: SmartSolar, battery SoC and grid import/export are displayed; house consumption is read but not currently published.
 
 ### Removed
 - V7.6 `editor_v76.py` generative editorial path from the V8 branch.
@@ -31,7 +34,8 @@ All notable changes to Vicky are documented here.
 
 ### Migration status
 - The running `/home/gerd/vicky7` installation on the Orin has not yet been switched to V8.
-- The production Victron script and `awtrix-victron.service` still need to be captured from the live Orin and committed after verification.
+- The production Victron Python script has now been captured and committed.
+- The current `awtrix-victron.service` unit still needs to be captured from the live Orin before the Victron migration is complete.
 - V7/main remains the rollback reference while `v8-clean` is completed and tested.
 
 ## [7.6.0] - 2026-07-28
