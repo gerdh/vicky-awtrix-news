@@ -110,9 +110,9 @@ Current displayed pages are:
 
 The script also reads house-consumption data from `/Ac/Consumption/L1/Power`, but the current production loop does not publish a `Home` page. V8 preserves the live behavior rather than reintroducing an older display path by assumption.
 
-MQTT credentials are not stored inside the Victron source file in V8. The script shares the normal Vicky `config.py` values. Cerbo host, user and SSH-key path can be overridden with environment variables.
+MQTT credentials are not stored inside the Victron source file in V8. The script shares the normal Vicky `config.py` values. Cerbo host, user and SSH-key path can be overridden with the environment variables `VICKY_CERBO_HOST`, `VICKY_CERBO_USER` and `VICKY_CERBO_SSH_KEY`.
 
-The current `awtrix-victron.service` unit still needs to be captured from the Orin before the migration is considered complete.
+The production systemd unit has also been captured as `systemd/awtrix-victron.service`. The V8 unit keeps the live restart/network behavior while pointing to `/home/gerd/vicky8/victron/awtrix_victron.py`.
 
 ## Main V8 files
 
@@ -126,7 +126,8 @@ The current `awtrix-victron.service` unit still needs to be captured from the Or
 - `display.py` – MQTT/AWTRIX publishing helpers
 - `scripts/vicky-awtrix-button` – left/right AWTRIX button controller and shared MQTT language state
 - `weather/rain_warning.yaml` – multilingual Home Assistant rain warning
-- `victron/awtrix_victron.py` – current production Victron AWTRIX display logic
+- `victron/awtrix_victron.py` – production Victron AWTRIX display logic
+- `systemd/awtrix-victron.service` – V8 Victron service definition
 
 ## Requirements
 
@@ -169,7 +170,7 @@ V8 is intentionally a cleanup rather than another compatibility layer.
 
 Removed from the V8 runtime path are the old generative editorial chain and parallel historical source trees, including the V7.6 `editor_v76.py` path. V7 remains available on the previous branch/main history as a rollback reference while `v8-clean` is completed and tested.
 
-The running Orin installation should not be switched to V8 until the News, Button, Rain and Victron production files and service definitions have all been captured, reviewed and tested together.
+The production News, Button, Rain and Victron files are now represented in the V8 branch. The running Orin installation should still not be switched from `/home/gerd/vicky7` until the V8 tree has been deployed in parallel under `/home/gerd/vicky8` and all services have been tested together.
 
 ## Version history
 
