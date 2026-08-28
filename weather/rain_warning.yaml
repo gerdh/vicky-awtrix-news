@@ -1,0 +1,58 @@
+# Vicky 8 - AWTRIX rain warning for Billiat
+# Extracted from the currently running Home Assistant automation.
+# Checks Météo-France next_rain every 5 minutes and publishes a short AWTRIX warning.
+
+- id: '1787248345937'
+  alias: AWTRIX Regenwarnung Billiat
+  description: Météo-France Regenvorhersage auf AWTRIX
+  triggers:
+    - trigger: time_pattern
+      minutes: /5
+
+  actions:
+    - variables:
+        forecast: >-
+          {{ state_attr(
+            'sensor.meteo_france_rain_for_city_billiat_rhone_alpes_01_fr_billiat_next_rain',
+            '1_hour_forecast'
+          ) or {} }}
+
+        rain_minutes: >-
+          {% set ns = namespace(minutes='') %}
+          {% for key, value in forecast.items() %}
+            {% if ns.minutes == '' and value in ['Pluie faible', 'Pluie modérée', 'Pluie forte'] %}
+              {% set ns.minutes = key | replace(' min','') %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.minutes }}
+
+        rain_type: >-
+          {% set ns = namespace(type='') %}
+          {% for key, value in forecast.items() %}
+            {% if ns.type == '' and value in ['Pluie faible', 'Pluie modérée', 'Pluie forte'] %}
+              {% set ns.type = value %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.type }}
+
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ rain_minutes | trim != '' }}"
+          sequence:
+            - action: mqtt.publish
+              data:
+                topic: awtrix_3e6014/custom/rain
+                payload: >-
+                  {
+                    "text": "{% if rain_minutes | int == 0 %}Regen jetzt{% elif rain_type | trim == 'Pluie forte' %}Starker Regen in {{ rain_minutes | trim }} Min.{% elif rain_type | trim == 'Pluie modérée' %}Regen in {{ rain_minutes | trim }} Min.{% else %}Leichter Regen in {{ rain_minutes | trim }} Min.{% endif %}",
+                    "duration": 10,
+                    "color": "FF0000"
+                  }
+      default:
+        - action: mqtt.publish
+          data:
+            topic: awtrix_3e6014/custom/rain
+            payload: ''
+
+  mode: restart
