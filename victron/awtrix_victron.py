@@ -4,7 +4,15 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
+from pathlib import Path
+
+# Allow direct execution as `python victron/awtrix_victron.py` by adding the
+# repository root (which contains config.py) to the import path.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from config import BASE_TOPIC, MQTT_HOST, MQTT_PASS, MQTT_USER
 
