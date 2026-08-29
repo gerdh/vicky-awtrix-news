@@ -3,6 +3,14 @@ set -euo pipefail
 
 REPO_URL="https://github.com/gerdh/vicky-awtrix-news.git"
 BRANCH="v8-clean"
+DRY_RUN=false
+
+if [[ "${1:-}" == "--dry-run" ]]; then
+  DRY_RUN=true
+elif [[ $# -gt 0 ]]; then
+  echo "Verwendung: $0 [--dry-run]"
+  exit 2
+fi
 
 if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
   echo "Bitte als normaler Benutzer starten, nicht direkt als root. sudo wird bei Bedarf verwendet."
@@ -25,6 +33,63 @@ read_default() {
 if ! command -v apt-get >/dev/null 2>&1; then
   echo "Dieser Installer unterstützt derzeit Debian/Ubuntu-Systeme mit apt."
   exit 1
+fi
+
+if $DRY_RUN; then
+  say "Vicky 8 DRY-RUN"
+  echo "Es werden KEINE Dateien, Pakete, Container oder Dienste verändert."
+  echo "Benutzer : $INSTALL_USER"
+  echo "Ziel      : $INSTALL_DIR"
+  echo
+  printf '%-28s %s\n' "apt-get" "$(command -v apt-get >/dev/null 2>&1 && echo vorhanden || echo FEHLT)"
+  printf '%-28s %s\n' "git" "$(command -v git >/dev/null 2>&1 && echo vorhanden || echo wird installiert)"
+  printf '%-28s %s\n' "python3" "$(command -v python3 >/dev/null 2>&1 && echo vorhanden || echo wird installiert)"
+  printf '%-28s %s\n' "mosquitto_pub" "$(command -v mosquitto_pub >/dev/null 2>&1 && echo vorhanden || echo wird installiert)"
+  printf '%-28s %s\n' "docker" "$(command -v docker >/dev/null 2>&1 && echo vorhanden || echo wird installiert)"
+
+  if [[ -d "$INSTALL_DIR/.git" ]]; then
+    echo "Vicky 8 Repository          vorhanden -> würde aktualisiert"
+  elif [[ -e "$INSTALL_DIR" ]]; then
+    echo "Vicky 8 Ziel                existiert, aber kein Git-Repo -> echte Installation würde ABBRECHEN"
+  else
+    echo "Vicky 8 Repository          fehlt -> würde aus $BRANCH geklont"
+  fi
+
+  if command -v docker >/dev/null 2>&1 && sudo docker inspect homeassistant >/dev/null 2>&1; then
+    HA_EXISTING="$(sudo docker inspect homeassistant --format '{{range .Mounts}}{{if eq .Destination "/config"}}{{.Source}}{{end}}{{end}}' 2>/dev/null || true)"
+    echo "Home Assistant              vorhanden${HA_EXISTING:+ -> $HA_EXISTING}"
+  else
+    echo "Home Assistant              fehlt -> Docker/HA-Container würde eingerichtet"
+  fi
+
+  if systemctl list-unit-files mosquitto.service >/dev/null 2>&1; then
+    echo "Mosquitto                   vorhanden -> würde konfiguriert"
+  else
+    echo "Mosquitto                   fehlt -> würde installiert"
+  fi
+
+  for unit in awtrix-news.service awtrix-victron.service vicky-awtrix-button.service; do
+    if [[ -e "/etc/systemd/system/$unit" ]]; then
+      echo "$unit vorhanden -> würde ersetzt"
+    else
+      echo "$unit fehlt -> würde angelegt"
+    fi
+  done
+
+  echo
+  echo "Bei echter Installation würde der Installer anschließend:"
+  echo "  1. Systempakete installieren/aktualisieren"
+  echo "  2. Mosquitto mit Benutzer/Passwort konfigurieren"
+  echo "  3. Docker + Home Assistant installieren, falls nötig"
+  echo "  4. Vicky 8 klonen/aktualisieren und Python-venv bauen"
+  echo "  5. AWTRIX/MQTT config.py erzeugen"
+  echo "  6. SSH-Key für Cerbo/GX vorbereiten"
+  echo "  7. News-, Victron- und Button-systemd-Dienste anlegen"
+  echo "  8. V8-Regenautomation in Home Assistant ergänzen"
+  echo "  9. Python- und Home-Assistant-Konfiguration prüfen"
+  echo
+  echo "DRY-RUN beendet: keine Änderungen vorgenommen."
+  exit 0
 fi
 
 say "Vicky 8 Komplett-Installer"
@@ -91,9 +156,6 @@ else
   mkdir -p "$HA_CONFIG_DIR"
   chown -R "$INSTALL_USER":"$(id -gn "$INSTALL_USER")" "$(dirname "$HA_CONFIG_DIR")"
 
-  # Pre-create a normal YAML layout so the rain automation can be installed
-  # before first onboarding. Home Assistant will keep its runtime state in the
-  # same directory.
   if [[ ! -f "$HA_CONFIG_DIR/configuration.yaml" ]]; then
     cat > "$HA_CONFIG_DIR/configuration.yaml" <<'EOF'
 default_config:
