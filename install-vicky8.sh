@@ -12,9 +12,9 @@ fi
 INSTALL_USER="${SUDO_USER:-$USER}"
 USER_HOME="$(getent passwd "$INSTALL_USER" | cut -d: -f6)"
 INSTALL_DIR="${VICKY_INSTALL_DIR:-$USER_HOME/vicky8}"
+DEFAULT_HA_CONFIG="$USER_HOME/homeassistant/config"
 
 say() { printf '\n==> %s\n' "$*"; }
-need() { command -v "$1" >/dev/null 2>&1 || { echo "FEHLT: $1"; exit 1; }; }
 
 read_default() {
   local prompt="$1" default="$2" var
@@ -22,7 +22,12 @@ read_default() {
   printf '%s' "${var:-$default}"
 }
 
-say "Vicky 8 Installer"
+if ! command -v apt-get >/dev/null 2>&1; then
+  echo "Dieser Installer unterstützt derzeit Debian/Ubuntu-Systeme mit apt."
+  exit 1
+fi
+
+say "Vicky 8 Komplett-Installer"
 echo "Benutzer : $INSTALL_USER"
 echo "Ziel      : $INSTALL_DIR"
 
@@ -43,16 +48,11 @@ SSH_KEY="$(read_default 'SSH Key für Cerbo/GX' "$USER_HOME/.ssh/id_ed25519")"
 read -r -p "Lokalen Mosquitto-Broker installieren/konfigurieren? [J/n]: " INSTALL_MQTT
 INSTALL_MQTT="${INSTALL_MQTT:-J}"
 
-read -r -p "Home-Assistant-Regenautomation jetzt installieren? [j/N]: " INSTALL_RAIN
-INSTALL_RAIN="${INSTALL_RAIN:-N}"
-HA_CONFIG_DIR=""
-if [[ "$INSTALL_RAIN" =~ ^[JjYy]$ ]]; then
-  HA_CONFIG_DIR="$(read_default 'Pfad zum Home-Assistant config-Ordner' '/config')"
-fi
-
 say "Systempakete installieren"
 sudo apt-get update
-sudo apt-get install -y git python3 python3-venv python3-pip openssh-client mosquitto-clients curl ca-certificates
+sudo apt-get install -y \
+  git python3 python3-venv python3-pip openssh-client \
+  mosquitto-clients curl ca-certificates
 
 if [[ "$INSTALL_MQTT" =~ ^[JjYy]$ ]]; then
   sudo apt-get install -y mosquitto
@@ -60,13 +60,62 @@ if [[ "$INSTALL_MQTT" =~ ^[JjYy]$ ]]; then
   sudo install -d -m 0755 /etc/mosquitto/conf.d
   sudo touch /etc/mosquitto/passwd
   sudo chmod 0600 /etc/mosquitto/passwd
-  printf '%s\n' "$MQTT_PASS" | sudo mosquitto_passwd -b /etc/mosquitto/passwd "$MQTT_USER" "$MQTT_PASS" >/dev/null
+  sudo mosquitto_passwd -b /etc/mosquitto/passwd "$MQTT_USER" "$MQTT_PASS"
   sudo tee /etc/mosquitto/conf.d/vicky8.conf >/dev/null <<EOF
 listener 1883 0.0.0.0
 allow_anonymous false
 password_file /etc/mosquitto/passwd
 EOF
   sudo systemctl enable --now mosquitto
+fi
+
+say "Home Assistant prüfen"
+if ! command -v docker >/dev/null 2>&1; then
+  say "Docker fehlt - Docker und Home Assistant werden installiert"
+  sudo apt-get install -y docker.io
+  sudo systemctl enable --now docker
+fi
+
+HA_CONFIG_DIR=""
+if sudo docker inspect homeassistant >/dev/null 2>&1; then
+  HA_CONFIG_DIR="$(sudo docker inspect homeassistant --format '{{range .Mounts}}{{if eq .Destination "/config"}}{{.Source}}{{end}}{{end}}')"
+  if [[ -z "$HA_CONFIG_DIR" ]]; then
+    echo "WARNUNG: Home-Assistant-Container gefunden, aber /config-Mount nicht erkannt."
+    HA_CONFIG_DIR="$(read_default 'Home-Assistant config-Ordner' "$DEFAULT_HA_CONFIG")"
+  else
+    echo "Vorhandener Home Assistant gefunden: $HA_CONFIG_DIR"
+  fi
+else
+  HA_CONFIG_DIR="$(read_default 'Neuer Home-Assistant config-Ordner' "$DEFAULT_HA_CONFIG")"
+  say "Home Assistant Container installieren"
+  mkdir -p "$HA_CONFIG_DIR"
+  chown -R "$INSTALL_USER":"$(id -gn "$INSTALL_USER")" "$(dirname "$HA_CONFIG_DIR")"
+
+  # Pre-create a normal YAML layout so the rain automation can be installed
+  # before first onboarding. Home Assistant will keep its runtime state in the
+  # same directory.
+  if [[ ! -f "$HA_CONFIG_DIR/configuration.yaml" ]]; then
+    cat > "$HA_CONFIG_DIR/configuration.yaml" <<'EOF'
+default_config:
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+EOF
+  fi
+  touch "$HA_CONFIG_DIR/automations.yaml" "$HA_CONFIG_DIR/scripts.yaml" "$HA_CONFIG_DIR/scenes.yaml"
+
+  sudo docker pull ghcr.io/home-assistant/home-assistant:stable
+  sudo docker run -d \
+    --name homeassistant \
+    --privileged \
+    --restart=unless-stopped \
+    --stop-timeout 60 \
+    -e TZ=Europe/Paris \
+    -v "$HA_CONFIG_DIR:/config" \
+    -v /run/dbus:/run/dbus:ro \
+    --network=host \
+    ghcr.io/home-assistant/home-assistant:stable
 fi
 
 say "Vicky 8 holen/aktualisieren"
@@ -171,21 +220,18 @@ EOF
 chmod +x "$INSTALL_DIR/scripts/vicky-awtrix-button"
 sudo systemctl daemon-reload
 
-if [[ "$INSTALL_RAIN" =~ ^[JjYy]$ ]]; then
-  say "Home-Assistant-Regenautomation installieren"
-  AUTO="$HA_CONFIG_DIR/automations.yaml"
-  RAIN="$INSTALL_DIR/weather/rain_warning.yaml"
-  if [[ ! -f "$AUTO" ]]; then
-    echo "WARNUNG: $AUTO nicht gefunden. Regenautomation wurde nicht verändert."
-  elif grep -q "1787248345937" "$AUTO"; then
-    echo "Regenautomation mit ID 1787248345937 ist bereits vorhanden; keine automatische Überschreibung."
-    echo "V8-Datei liegt hier: $RAIN"
-  else
-    cp "$AUTO" "$AUTO.before-vicky8"
-    printf '\n' >> "$AUTO"
-    cat "$RAIN" >> "$AUTO"
-    echo "Regenautomation ergänzt. Backup: $AUTO.before-vicky8"
-  fi
+say "V8 Regenautomation in Home Assistant installieren"
+AUTO="$HA_CONFIG_DIR/automations.yaml"
+RAIN="$INSTALL_DIR/weather/rain_warning.yaml"
+mkdir -p "$HA_CONFIG_DIR"
+touch "$AUTO"
+if grep -q "1787248345937" "$AUTO"; then
+  echo "Regenautomation mit ID 1787248345937 ist bereits vorhanden; keine Überschreibung."
+else
+  cp "$AUTO" "$AUTO.before-vicky8"
+  printf '\n' >> "$AUTO"
+  cat "$RAIN" >> "$AUTO"
+  echo "Regenautomation ergänzt. Backup: $AUTO.before-vicky8"
 fi
 
 say "Syntax prüfen"
@@ -199,22 +245,39 @@ say "Syntax prüfen"
   "$INSTALL_DIR/display.py" \
   "$INSTALL_DIR/victron/awtrix_victron.py"
 
+if sudo docker ps --format '{{.Names}}' | grep -qx homeassistant; then
+  sudo docker exec homeassistant python -m homeassistant --script check_config --config /config || {
+    echo "WARNUNG: Home-Assistant-Konfigurationsprüfung ist noch nicht erfolgreich."
+    echo "Bei einer frischen Installation zuerst das HA-Onboarding abschließen und danach erneut prüfen."
+  }
+fi
+
 say "Installation abgeschlossen"
 echo
-echo "WICHTIG: Noch nicht automatisch gestartet, damit AWTRIX/Victron erst geprüft werden können."
+echo "Installiert/vorbereitet:"
+echo "  - Vicky 8 News"
+echo "  - AWTRIX Sprach-/Button-Steuerung"
+echo "  - Victron AWTRIX Tiles"
+echo "  - Mosquitto MQTT"
+echo "  - Home Assistant Container"
+echo "  - V8 Regenautomation"
 echo
-echo "1. AWTRIX MQTT auf den Broker dieses Rechners einstellen: Port 1883, Benutzer $MQTT_USER."
-echo "2. Cerbo/GX SSH-Key autorisieren. Öffentlicher Schlüssel:"
-echo "   $SSH_KEY.pub"
+echo "WICHTIG: Vicky-Dienste werden noch nicht automatisch gestartet, damit AWTRIX und Victron zuerst geprüft werden können."
+echo
+echo "Noch einmalig erforderlich:"
+echo "1. Home Assistant öffnen: http://<IP-DIESES-RECHNERS>:8123 und Onboarding abschließen."
+echo "2. In Home Assistant die MQTT-Integration mit Broker $MQTT_HOST:1883, Benutzer $MQTT_USER einrichten."
+echo "3. In Home Assistant Météo-France einrichten, sodass die next_rain-Entität für Billiat vorhanden ist."
+echo "4. AWTRIX MQTT auf diesen Broker einstellen: Port 1883, Benutzer $MQTT_USER."
+echo "5. Cerbo/GX SSH-Key autorisieren: $SSH_KEY.pub"
 echo "   Test: ssh -i '$SSH_KEY' '$CERBO_USER@$CERBO_HOST' 'echo OK'"
-echo "3. Victron-Test:"
+echo
+echo "Danach testen:"
 echo "   cd '$INSTALL_DIR' && '$PYTHON' victron/awtrix_victron.py"
-echo "4. News-Test:"
 echo "   cd '$INSTALL_DIR' && '$PYTHON' awtrix_news_vicki.py"
-echo "5. Wenn beide Tests funktionieren, Dienste starten:"
+echo
+echo "Wenn beide Tests funktionieren:"
 echo "   sudo systemctl enable --now awtrix-news awtrix-victron vicky-awtrix-button"
 echo
 echo "Status:"
 echo "   systemctl --no-pager --full status awtrix-news awtrix-victron vicky-awtrix-button"
-echo
-echo "Regen benötigt zusätzlich Home Assistant, die Météo-France next_rain Entität für Billiat und MQTT Discovery."
