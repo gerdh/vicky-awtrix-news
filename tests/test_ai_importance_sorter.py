@@ -21,6 +21,20 @@ def test_ai_sort_reorders_only(monkeypatch):
     assert messages == original_snapshots
 
 
+def test_ai_can_confirm_existing_order(monkeypatch):
+    messages = [{"text": "First"}, {"text": "Second"}, {"text": "Third"}]
+    logged = []
+
+    monkeypatch.setattr(sorter, "_enabled", lambda: True)
+    monkeypatch.setattr(sorter, "_request_order", lambda _messages: [1, 2, 3])
+
+    result = sorter.sort_messages_by_ai_importance(messages, log=logged.append)
+
+    assert result == messages
+    assert all(result[index] is messages[index] for index in range(len(messages)))
+    assert logged == ["AI importance sort completed: priority/order unchanged"]
+
+
 def test_invalid_ai_order_keeps_existing_order(monkeypatch):
     messages = [
         {"text": "First"},
