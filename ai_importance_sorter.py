@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Optional final AI ranking pass for already-finished Vicky messages.
 
-The AI is never allowed to rewrite news text.  It only receives numbered IDs and
-finished display text and must return a permutation of those IDs.  The caller
+The AI is never allowed to rewrite news text. It only receives numbered IDs and
+finished display text and must return a permutation of those IDs. The caller
 then reorders the original message dictionaries without modifying them.
 
 If the local OpenAI-compatible endpoint is unavailable, times out, or returns
@@ -71,8 +71,6 @@ def _extract_order(content: str) -> list[int] | None:
     if not content:
         return None
 
-    # Prefer a complete JSON object.  A small extraction fallback tolerates
-    # markdown fences while still requiring the final payload to be JSON.
     candidates = [content]
     match = re.search(r"\{.*\}", content, flags=re.DOTALL)
     if match and match.group(0) != content:
@@ -128,12 +126,7 @@ def sort_messages_by_ai_importance(
     messages: Iterable[dict],
     log: Callable[[str], None] | None = None,
 ) -> list[dict]:
-    """Return the same message objects, optionally reordered by local AI.
-
-    No message content is copied from the model response.  A successful result
-    must be an exact permutation of 1..N; otherwise this function fails closed
-    to the original order.
-    """
+    """Return the same message objects, optionally reordered by local AI."""
 
     original = list(messages)
     if len(original) < 2 or not _enabled():
@@ -147,7 +140,7 @@ def sort_messages_by_ai_importance(
     except (OSError, urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as error:
         logger(f"AI importance sort unavailable; keeping current order: {error}")
         return original
-    except Exception as error:  # fail closed for unexpected endpoint/protocol errors
+    except Exception as error:
         logger(f"AI importance sort failed; keeping current order: {error}")
         return original
 
@@ -155,12 +148,15 @@ def sort_messages_by_ai_importance(
         logger("AI importance sort returned invalid order; keeping current order")
         return original
 
+    if order == expected:
+        logger("AI importance sort completed: priority/order unchanged")
+        return original
+
     sorted_messages = [original[index - 1] for index in order]
 
-    # Defensive identity/content check: sorting is allowed; mutation is not.
     if sorted(map(id, sorted_messages)) != sorted(map(id, original)):
         logger("AI importance sort safety check failed; keeping current order")
         return original
 
-    logger("AI importance order: " + ",".join(map(str, order)))
+    logger("AI importance sort changed order to: " + ",".join(map(str, order)))
     return sorted_messages
