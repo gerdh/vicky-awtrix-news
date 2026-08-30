@@ -19,13 +19,18 @@ Vicky 8 is **not a generative-AI news editor**. The news pipeline is intentional
 
 Vicky 8 does use local neural machine-translation models through CTranslate2 / OPUS-MT for French, German and English translation. That translation layer can reasonably be described as local AI/ML, but the overall system is not "fully AI based".
 
-The generative llama.cpp editorial stage used in older Vicky generations was deliberately removed for V8. The reasons are practical:
+Generative AI **was used in earlier Vicky versions**. A local llama.cpp language model was part of the editorial pipeline and was asked to rewrite or improve news headlines before publication. During real-world testing, however, this approach proved unsuitable for a factual news display: even when the source headline was correct, generative models could occasionally add details that were not present in the source, alter the meaning, combine information from different items or make a headline sound more certain than the original report.
 
-- factual reliability: headlines should not be invented, merged or embellished
-- predictable behavior: the same input should follow a controlled processing path
+For Vicky 8, that generative editorial stage was therefore deliberately removed. This was not because AI could not run locally, but because factual reliability is more important than stylistic rewriting for short news headlines. Vicky should display what the source actually reported, not what a language model considers a plausible improvement.
+
+The V8 design therefore favors:
+
+- factual fidelity: no invented names, numbers, causes, context or conclusions
+- predictable behavior: headlines follow a controlled processing path
+- source integrity: one story remains one story and is not merged with another
 - easier fault diagnosis and testing
 - lower CPU/RAM and model-management overhead on the always-on Orin
-- graceful fallback: if translation fails, Vicky can show the original headline instead of generating substitute content
+- graceful fallback: if translation fails, Vicky shows the original headline instead of generating substitute content
 
 In short: **local AI-assisted translation, deterministic news processing**.
 
