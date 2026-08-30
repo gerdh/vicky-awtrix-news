@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_URL="https://github.com/gerdh/vicky-awtrix-news.git"
-BRANCH="v8-clean"
+BRANCH="v8.1"
 DRY_RUN=false
 
 if [[ "${1:-}" == "--dry-run" ]]; then
@@ -21,6 +21,7 @@ INSTALL_USER="${SUDO_USER:-$USER}"
 USER_HOME="$(getent passwd "$INSTALL_USER" | cut -d: -f6)"
 INSTALL_DIR="${VICKY_INSTALL_DIR:-$USER_HOME/vicky8}"
 DEFAULT_HA_CONFIG="$USER_HOME/homeassistant/config"
+ARCH="$(uname -m)"
 
 say() { printf '\n==> %s\n' "$*"; }
 
@@ -31,15 +32,17 @@ read_default() {
 }
 
 if ! command -v apt-get >/dev/null 2>&1; then
-  echo "Dieser Installer unterstützt derzeit Debian/Ubuntu-Systeme mit apt."
+  echo "Dieser Installer unterstützt Debian/Ubuntu/Raspberry Pi OS mit apt."
   exit 1
 fi
 
 if $DRY_RUN; then
-  say "Vicky 8 DRY-RUN"
+  say "Vicky 8.1 DRY-RUN"
   echo "Es werden KEINE Dateien, Pakete, Container oder Dienste verändert."
-  echo "Benutzer : $INSTALL_USER"
-  echo "Ziel      : $INSTALL_DIR"
+  echo "Benutzer     : $INSTALL_USER"
+  echo "Architektur  : $ARCH"
+  echo "Git-Branch   : $BRANCH"
+  echo "Ziel         : $INSTALL_DIR"
   echo
   printf '%-28s %s\n' "apt-get" "$(command -v apt-get >/dev/null 2>&1 && echo vorhanden || echo FEHLT)"
   printf '%-28s %s\n' "git" "$(command -v git >/dev/null 2>&1 && echo vorhanden || echo wird installiert)"
@@ -47,12 +50,18 @@ if $DRY_RUN; then
   printf '%-28s %s\n' "mosquitto_pub" "$(command -v mosquitto_pub >/dev/null 2>&1 && echo vorhanden || echo wird installiert)"
   printf '%-28s %s\n' "docker" "$(command -v docker >/dev/null 2>&1 && echo vorhanden || echo wird installiert)"
 
-  if [[ -d "$INSTALL_DIR/.git" ]]; then
-    echo "Vicky 8 Repository          vorhanden -> würde aktualisiert"
-  elif [[ -e "$INSTALL_DIR" ]]; then
-    echo "Vicky 8 Ziel                existiert, aber kein Git-Repo -> echte Installation würde ABBRECHEN"
+  if [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
+    echo "Raspberry Pi / ARM64        geeignet"
   else
-    echo "Vicky 8 Repository          fehlt -> würde aus $BRANCH geklont"
+    echo "Architektur                 $ARCH (Installer bleibt nutzbar, Raspberry Pi empfohlen: 64-bit)"
+  fi
+
+  if [[ -d "$INSTALL_DIR/.git" ]]; then
+    echo "Vicky 8.1 Repository        vorhanden -> würde auf $BRANCH aktualisiert"
+  elif [[ -e "$INSTALL_DIR" ]]; then
+    echo "Vicky 8.1 Ziel              existiert, aber kein Git-Repo -> echte Installation würde ABBRECHEN"
+  else
+    echo "Vicky 8.1 Repository        fehlt -> würde aus $BRANCH geklont"
   fi
 
   if command -v docker >/dev/null 2>&1 && sudo docker inspect homeassistant >/dev/null 2>&1; then
@@ -81,20 +90,24 @@ if $DRY_RUN; then
   echo "  1. Systempakete installieren/aktualisieren"
   echo "  2. Mosquitto mit Benutzer/Passwort konfigurieren"
   echo "  3. Docker + Home Assistant installieren, falls nötig"
-  echo "  4. Vicky 8 klonen/aktualisieren und Python-venv bauen"
-  echo "  5. AWTRIX/MQTT config.py erzeugen"
-  echo "  6. SSH-Key für Cerbo/GX vorbereiten"
-  echo "  7. News-, Victron- und Button-systemd-Dienste anlegen"
-  echo "  8. V8-Regenautomation in Home Assistant ergänzen"
-  echo "  9. Python- und Home-Assistant-Konfiguration prüfen"
+  echo "  4. Vicky 8.1 aus Branch $BRANCH klonen/aktualisieren"
+  echo "  5. Python-venv und Vicky-Abhängigkeiten installieren"
+  echo "  6. AWTRIX/MQTT config.py erzeugen"
+  echo "  7. SSH-Key für Cerbo/GX vorbereiten"
+  echo "  8. News-, Victron- und Button-systemd-Dienste anlegen"
+  echo "  9. V8-Regenautomation in Home Assistant ergänzen"
+  echo " 10. V8.1 AI-Priorisierung konfigurierbar machen"
+  echo " 11. Python- und Home-Assistant-Konfiguration prüfen"
   echo
   echo "DRY-RUN beendet: keine Änderungen vorgenommen."
   exit 0
 fi
 
-say "Vicky 8 Komplett-Installer"
-echo "Benutzer : $INSTALL_USER"
-echo "Ziel      : $INSTALL_DIR"
+say "Vicky 8.1 Komplett-Installer"
+echo "Benutzer     : $INSTALL_USER"
+echo "Architektur  : $ARCH"
+echo "Git-Branch   : $BRANCH"
+echo "Ziel         : $INSTALL_DIR"
 
 AWTRIX_UID="$(read_default 'AWTRIX UID, z.B. awtrix_3e6014' 'awtrix_3e6014')"
 MQTT_HOST="$(read_default 'MQTT Host für Vicky' '127.0.0.1')"
@@ -112,6 +125,18 @@ SSH_KEY="$(read_default 'SSH Key für Cerbo/GX' "$USER_HOME/.ssh/id_ed25519")"
 
 read -r -p "Lokalen Mosquitto-Broker installieren/konfigurieren? [J/n]: " INSTALL_MQTT
 INSTALL_MQTT="${INSTALL_MQTT:-J}"
+
+read -r -p "V8.1 AI-Priorisierung aktivieren? Nur wenn ein lokaler OpenAI-kompatibler AI-Server läuft. [j/N]: " ENABLE_AI_SORT
+ENABLE_AI_SORT="${ENABLE_AI_SORT:-N}"
+if [[ "$ENABLE_AI_SORT" =~ ^[JjYy]$ ]]; then
+  AI_SORT="1"
+  AI_URL="$(read_default 'AI API URL' 'http://127.0.0.1:8080/v1/chat/completions')"
+  AI_MODEL="$(read_default 'AI Modellname' 'local-model')"
+else
+  AI_SORT="0"
+  AI_URL="http://127.0.0.1:8080/v1/chat/completions"
+  AI_MODEL="local-model"
+fi
 
 say "Systempakete installieren"
 sudo apt-get update
@@ -180,7 +205,7 @@ EOF
     ghcr.io/home-assistant/home-assistant:stable
 fi
 
-say "Vicky 8 holen/aktualisieren"
+say "Vicky 8.1 holen/aktualisieren"
 if [[ -d "$INSTALL_DIR/.git" ]]; then
   git -C "$INSTALL_DIR" fetch origin "$BRANCH"
   git -C "$INSTALL_DIR" checkout "$BRANCH"
@@ -221,7 +246,7 @@ PYTHON="$INSTALL_DIR/.venv/bin/python"
 
 sudo tee /etc/systemd/system/awtrix-news.service >/dev/null <<EOF
 [Unit]
-Description=Vicky V8 AWTRIX News Service
+Description=Vicky V8.1 AWTRIX News Service
 After=network-online.target mosquitto.service
 Wants=network-online.target
 
@@ -233,6 +258,9 @@ ExecStart=$PYTHON $INSTALL_DIR/awtrix_news_vicki.py
 Restart=always
 RestartSec=10
 Environment=PYTHONUNBUFFERED=1
+Environment=VICKY_AI_IMPORTANCE_SORT=$AI_SORT
+Environment=VICKY_AI_IMPORTANCE_URL=$AI_URL
+Environment=VICKY_AI_IMPORTANCE_MODEL=$AI_MODEL
 
 [Install]
 WantedBy=multi-user.target
@@ -240,7 +268,7 @@ EOF
 
 sudo tee /etc/systemd/system/awtrix-victron.service >/dev/null <<EOF
 [Unit]
-Description=Vicky V8 AWTRIX Victron Tiles
+Description=Vicky V8.1 AWTRIX Victron Tiles
 After=network-online.target mosquitto.service
 Wants=network-online.target
 
@@ -262,7 +290,7 @@ EOF
 
 sudo tee /etc/systemd/system/vicky-awtrix-button.service >/dev/null <<EOF
 [Unit]
-Description=Vicky V8 AWTRIX Button Listener
+Description=Vicky V8.1 AWTRIX Button Listener
 After=network-online.target mosquitto.service
 Wants=network-online.target
 
@@ -300,6 +328,7 @@ say "Syntax prüfen"
 "$PYTHON" -m py_compile \
   "$INSTALL_DIR/awtrix_news_vicki.py" \
   "$INSTALL_DIR/safe_news_editor.py" \
+  "$INSTALL_DIR/ai_importance_sorter.py" \
   "$INSTALL_DIR/offline_translator.py" \
   "$INSTALL_DIR/language_state.py" \
   "$INSTALL_DIR/feed_monitor.py" \
@@ -317,12 +346,17 @@ fi
 say "Installation abgeschlossen"
 echo
 echo "Installiert/vorbereitet:"
-echo "  - Vicky 8 News"
+echo "  - Vicky 8.1 News"
 echo "  - AWTRIX Sprach-/Button-Steuerung"
 echo "  - Victron AWTRIX Tiles"
 echo "  - Mosquitto MQTT"
 echo "  - Home Assistant Container"
 echo "  - V8 Regenautomation"
+if [[ "$AI_SORT" == "1" ]]; then
+  echo "  - V8.1 AI-Priorisierung: aktiviert ($AI_URL)"
+else
+  echo "  - V8.1 AI-Priorisierung: vorbereitet, derzeit deaktiviert"
+fi
 echo
 echo "WICHTIG: Vicky-Dienste werden noch nicht automatisch gestartet, damit AWTRIX und Victron zuerst geprüft werden können."
 echo
@@ -333,6 +367,11 @@ echo "3. In Home Assistant Météo-France einrichten, sodass die next_rain-Entit
 echo "4. AWTRIX MQTT auf diesen Broker einstellen: Port 1883, Benutzer $MQTT_USER."
 echo "5. Cerbo/GX SSH-Key autorisieren: $SSH_KEY.pub"
 echo "   Test: ssh -i '$SSH_KEY' '$CERBO_USER@$CERBO_HOST' 'echo OK'"
+if [[ "$AI_SORT" == "1" ]]; then
+  echo "6. Lokalen AI-Server prüfen: $AI_URL"
+else
+  echo "6. Für die V8.1 AI-Priorisierung später einen lokalen OpenAI-kompatiblen AI-Server einrichten und VICKY_AI_IMPORTANCE_SORT=1 setzen."
+fi
 echo
 echo "Danach testen:"
 echo "   cd '$INSTALL_DIR' && '$PYTHON' victron/awtrix_victron.py"
