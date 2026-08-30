@@ -25,7 +25,8 @@ All notable changes to Vicky are documented here.
 - News editing now uses the deterministic `safe_news_editor` path directly.
 - Offline CTranslate2/OPUS-MT translation is the active multilingual translation layer.
 - Vicky 8 is documented as **AI-assisted for local machine translation**, not as a fully AI-based or generative-AI news editor.
-- The generative llama.cpp editorial stage was deliberately removed to improve factual reliability, predictability, fault diagnosis and resource efficiency. If translation fails, Vicky falls back to the original headline rather than generating replacement content.
+- Generative AI had been part of earlier Vicky versions through a local llama.cpp editorial model. Real-world testing showed that such models could occasionally add information not contained in the source headline, change nuance or certainty, or merge plausible details into a story. Because factual fidelity is more important than stylistic rewriting for a news display, the generative editorial stage was deliberately removed in V8.
+- V8 now keeps headline processing deterministic and falls back to the original source headline if translation cannot be produced safely.
 - Button-triggered news refresh no longer changes the language inside the news process itself.
 - Right AWTRIX button owns the language cycle `FR → DE → EN → FR`.
 - Left AWTRIX button remains the manual news refresh action.
