@@ -132,7 +132,7 @@ def sort_messages_by_ai_importance(
     if len(original) < 2 or not _enabled():
         return original
 
-    logger = log or (lambda _message: None)
+    logger = log or (lambda message: print(message, flush=True))
     expected = list(range(1, len(original) + 1))
 
     try:
