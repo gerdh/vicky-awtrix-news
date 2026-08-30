@@ -2,50 +2,49 @@
 
 All notable changes to Vicky are documented here.
 
-## [8.0.0-dev] - 2026-08-28
+## [8.0.0] - 2026-08-29
+
+### Released
+- Vicky 8.0 published from the stable `v8` branch with tag `V8.0.0`.
+- End-to-end validation completed for News, language switching, MQTT/Home Assistant language state, multilingual rain warning and Victron AWTRIX display.
 
 ### Added
-- New `v8-clean` development line for a clean Vicky 8 architecture.
 - Versioned AWTRIX button controller in `scripts/vicky-awtrix-button`.
 - V8 systemd unit for the button listener in `systemd/vicky-awtrix-button.service`.
 - Shared retained MQTT language state for French, German and English output.
 - Home Assistant MQTT Discovery for the selected Vicky language.
 - Multilingual Billiat rain warning in `weather/rain_warning.yaml` using the Météo-France `next_rain` sensor.
-- Current production Victron AWTRIX display script captured from the Orin as `victron/awtrix_victron.py`.
-- V8 systemd units for News and Victron under `/home/gerd/vicky8`.
-- Figaro added to the active feed catalogue used by the running Orin installation.
-- Vicky 8 documentation covering News, Buttons, Rain and the independent Victron display stack.
+- Victron AWTRIX display script in `victron/awtrix_victron.py`.
+- V8 systemd units for News and Victron.
+- Figaro added to the active feed catalogue.
+- Complete Debian/Ubuntu installer `install-vicky8.sh` for Vicky, Mosquitto, Docker/Home Assistant preparation, systemd services and rain-warning setup.
+- Non-destructive `--dry-run` installer mode.
+- Vicky 8 documentation covering News, Buttons, Rain, Victron, installation and the actual AI/ML scope.
 
 ### Changed
 - News editing now uses the deterministic `safe_news_editor` path directly.
 - Offline CTranslate2/OPUS-MT translation is the active multilingual translation layer.
+- Vicky 8 is documented as **AI-assisted for local machine translation**, not as a fully AI-based or generative-AI news editor.
+- The generative llama.cpp editorial stage was deliberately removed to improve factual reliability, predictability, fault diagnosis and resource efficiency. If translation fails, Vicky falls back to the original headline rather than generating replacement content.
 - Button-triggered news refresh no longer changes the language inside the news process itself.
 - Right AWTRIX button owns the language cycle `FR → DE → EN → FR`.
 - Left AWTRIX button remains the manual news refresh action.
 - Middle AWTRIX button is reserved for AWTRIX and is not handled by Vicky.
-- Rain warnings now follow the same selected output language as the news bulletins.
+- Rain warnings follow the same selected output language as the news bulletins.
 - Victron labels remain intentionally language-neutral (`Sol`, `Batt`, `In`, `Out`).
 - Victron MQTT credentials are no longer hard-coded in the versioned source and instead use the shared Vicky configuration.
-- The V8 Victron script preserves the current live Orin behavior: SmartSolar, battery SoC and grid import/export are displayed; house consumption is read but not currently published.
-- `systemd/awtrix-news.service` now describes the V8 Orin deployment instead of the old V6 `/opt` template.
-- `.gitignore` now excludes the V8 virtual environment and pytest cache.
-- `ROADMAP.md` now describes the V8 parallel-deployment and validation path instead of obsolete V7 development plans.
+- The V8 Victron script displays SmartSolar, battery SoC and grid import/export; house consumption is read but not currently published.
+- `.gitignore` excludes the V8 virtual environment, pytest cache and local credentials/runtime files.
 
 ### Removed
-- V7.6 `editor_v76.py` generative editorial path from the V8 branch.
-- Old `news_editor_v5.py` path from the V8 branch.
-- Parallel historical `src/` source tree from the V8 branch.
-- Legacy llama.cpp `vicki.py` client and LLM configuration from the V8 runtime configuration.
+- V7.6 `editor_v76.py` generative editorial path from the V8 runtime.
+- Old `news_editor_v5.py` path.
+- Parallel historical `src/` source tree.
+- Legacy llama.cpp `vicki.py` client and LLM configuration.
 - Unused `collectors/` abstraction and its tests.
 - Obsolete standalone `news_pool_manager.py` and its test.
 - Obsolete editorial `preferences.json`.
 - V7.3-specific `tools/patch_v73_pool_cleanup.py` helper.
-
-### Migration status
-- The repository-side V8 runtime set is complete: News, Buttons, Rain and Victron plus service definitions are versioned.
-- The running `/home/gerd/vicky7` installation on the Orin has not been switched.
-- Next step: deploy `v8-clean` in parallel under `/home/gerd/vicky8`, validate it end to end, then switch production services only if tests pass.
-- V7/main remains the rollback reference during the V8 validation period.
 
 ## [7.6.0] - 2026-07-28
 
