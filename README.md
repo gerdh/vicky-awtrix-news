@@ -1,8 +1,9 @@
 # Vicky 8 – AWTRIX information stack
 
-Vicky 8 is the cleaned-up successor to the V7 family. It brings the AWTRIX functions used on the reference Jetson Orin installation into one documented project while keeping the individual services independent.
+Vicky 8 is the released successor to the V7 family. It brings the AWTRIX functions used on the reference Jetson Orin installation into one documented project while keeping the individual services independent.
 
-**Current development branch: `v8-clean`**
+**Stable branch: `v8`**  
+**Release: `V8.0.0` / Vicky 8.0**
 
 Vicky 8 covers three functional areas:
 
@@ -12,11 +13,27 @@ Vicky 8 covers three functional areas:
 
 The news and rain-warning components share one persistent output language: French, German or English. The compact Victron labels (`Sol`, `Batt`, `In`, `Out`) stay language-neutral because they are intentionally short and widely understandable.
 
+## AI / machine-learning scope
+
+Vicky 8 is **not a generative-AI news editor**. The news pipeline is intentionally deterministic: RSS retrieval, feed-health checks, duplicate/history filtering, ranking and safe headline handling are performed with normal program logic rather than a free-form large language model.
+
+Vicky 8 does use local neural machine-translation models through CTranslate2 / OPUS-MT for French, German and English translation. That translation layer can reasonably be described as local AI/ML, but the overall system is not "fully AI based".
+
+The generative llama.cpp editorial stage used in older Vicky generations was deliberately removed for V8. The reasons are practical:
+
+- factual reliability: headlines should not be invented, merged or embellished
+- predictable behavior: the same input should follow a controlled processing path
+- easier fault diagnosis and testing
+- lower CPU/RAM and model-management overhead on the always-on Orin
+- graceful fallback: if translation fails, Vicky can show the original headline instead of generating substitute content
+
+In short: **local AI-assisted translation, deterministic news processing**.
+
 ## V8 design goals
 
 - one clear Vicky generation instead of accumulated V5/V6/V7 compatibility paths
 - independent services so a news, weather or Victron failure does not take down the other functions
-- deterministic headline translation instead of generative rewriting
+- deterministic headline processing instead of generative rewriting
 - one shared FR/DE/EN language state for user-facing prose
 - reproducible AWTRIX button behavior
 - version-controlled Home Assistant and systemd integration
@@ -98,7 +115,7 @@ The same logic covers light rain and rain starting immediately.
 
 ### Victron display
 
-The current production Victron AWTRIX script has been captured from the running Orin installation and is versioned as `victron/awtrix_victron.py`. The V8 service definition is `systemd/awtrix-victron.service`.
+The current Victron AWTRIX script is versioned as `victron/awtrix_victron.py`. The V8 service definition is `systemd/awtrix-victron.service`.
 
 It connects from the Orin to the Cerbo/GX system over SSH, reads Victron D-Bus values and publishes compact AWTRIX pages independently from the News and Rain services.
 
@@ -108,9 +125,33 @@ Current displayed pages are:
 - battery state of charge: `Batt 73%`
 - grid import/export: `In 69W` / `Out 350W`
 
-The script also reads house-consumption data from `/Ac/Consumption/L1/Power`, but the current production loop does not publish a `Home` page. V8 preserves the live behavior rather than reintroducing an older display path by assumption.
+The script also reads house-consumption data from `/Ac/Consumption/L1/Power`, but the current loop does not publish a `Home` page.
 
 MQTT credentials are not stored inside the Victron source file in V8. The script shares the normal Vicky `config.py` values. Cerbo host, user and SSH-key path can be overridden with environment variables.
+
+## Installation
+
+`install-vicky8.sh` is the complete Debian/Ubuntu installer for a fresh system. It can prepare or install:
+
+- required Linux packages and Python virtual environment
+- Vicky 8 from GitHub
+- Mosquitto MQTT
+- Docker when required
+- Home Assistant Container when Home Assistant is not already installed
+- Vicky News, Button and Victron systemd services
+- local Vicky configuration
+- SSH-key preparation for Cerbo/GX access
+- the V8 Home Assistant rain-warning automation
+
+The installer intentionally does not blindly start all Vicky services before AWTRIX and Victron connectivity have been checked.
+
+A non-destructive preview is available with:
+
+```bash
+./install-vicky8.sh --dry-run
+```
+
+A fresh Home Assistant installation still requires its one-time UI onboarding, MQTT integration setup and Météo-France location/entity setup.
 
 ## Main V8 files
 
@@ -124,10 +165,11 @@ MQTT credentials are not stored inside the Victron source file in V8. The script
 - `display.py` – MQTT/AWTRIX publishing helpers
 - `scripts/vicky-awtrix-button` – left/right AWTRIX button controller and shared MQTT language state
 - `weather/rain_warning.yaml` – multilingual Home Assistant rain warning
-- `victron/awtrix_victron.py` – current production Victron AWTRIX display logic
+- `victron/awtrix_victron.py` – Victron AWTRIX display logic
 - `systemd/awtrix-news.service` – V8 news service
 - `systemd/vicky-awtrix-button.service` – V8 button listener
 - `systemd/awtrix-victron.service` – V8 Victron display service
+- `install-vicky8.sh` – complete installer and `--dry-run` checker
 
 ## Requirements
 
@@ -148,19 +190,21 @@ MQTT credentials are not stored inside the Victron source file in V8. The script
 
 ### Victron display
 
-- network access from the Orin to the Victron GX / Cerbo system
-- passwordless SSH key access from the Orin to the GX device
+- network access from the host to the Victron GX / Cerbo system
+- passwordless SSH key access to the GX device
 - working Victron D-Bus values on the GX device
 - MQTT access to the AWTRIX broker
 
-## Reference installation
+## Reference installation and validation
 
-The project is developed around the original installation consisting of:
+Vicky 8 was developed and validated on a reference installation consisting of:
 
 - NVIDIA Jetson Orin running Vicky, Home Assistant and Mosquitto
-- AWTRIX Light `awtrix_3e6014`
+- AWTRIX Light
 - Victron GX / Cerbo system on the local network
-- local translation models under the Orin filesystem
+- local translation models
+
+The V8 validation covered the News service, RSS feeds, French/German/English language switching, retained MQTT language state, Home Assistant language discovery, multilingual rain warning and Victron `Sol`, `Batt`, `In` / `Out` display.
 
 Hostnames, addresses, credentials, AWTRIX UIDs and Home Assistant entity IDs are installation-specific and should be treated as configuration, not portable defaults.
 
@@ -168,8 +212,8 @@ Hostnames, addresses, credentials, AWTRIX UIDs and Home Assistant entity IDs are
 
 V8 is intentionally a cleanup rather than another compatibility layer.
 
-Removed from the V8 runtime path are the old generative editorial chain, the unused collectors abstraction, the obsolete separate pool manager and version-specific patch helpers. V7 remains available on the previous branch/main history as a rollback reference while `v8-clean` is tested.
+Removed from the V8 runtime path are the old generative editorial chain, the unused collectors abstraction, the obsolete separate pool manager and version-specific patch helpers. V7 remains available in repository history as a rollback reference.
 
-The repository side of V8 now contains the News, Button, Rain and Victron runtime components plus their service definitions. The remaining step before declaring V8 live is a parallel installation under `/home/gerd/vicky8` on the Orin and controlled end-to-end validation before switching the production services.
+Vicky 8.0 is published under tag `V8.0.0` from the stable `v8` branch.
 
-See `ROADMAP.md` for the deployment checklist and `CHANGELOG.md` for version history.
+See `ROADMAP.md` for future improvements and `CHANGELOG.md` for version history.
