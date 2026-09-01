@@ -9,6 +9,7 @@ fi
 INSTALL_USER="${SUDO_USER:-$USER}"
 USER_HOME="$(getent passwd "$INSTALL_USER" | cut -d: -f6)"
 CERBO_HOST="${VICKY_CERBO_HOST:-192.168.1.63}"
+CERBO_USER="${VICKY_CERBO_USER:-root}"
 SSH_KEY="${VICKY_CERBO_SSH_KEY:-$USER_HOME/.ssh/id_ed25519}"
 MQTT_USER="${VICKY_MQTT_USER:-mqtt_user}"
 MQTT_PASS="${VICKY_MQTT_PASS:-}"
@@ -61,6 +62,21 @@ ssh-keyscan -H "$CERBO_HOST" >> "$USER_HOME/.ssh/known_hosts" 2>/dev/null || {
 chmod 0600 "$USER_HOME/.ssh/known_hosts" 2>/dev/null || true
 chown -R "$INSTALL_USER":"$(id -gn "$INSTALL_USER")" "$USER_HOME/.ssh"
 
+printf '\n==> Passwortlosen Cerbo/GX SSH-Zugang prüfen\n'
+if ssh -o BatchMode=yes -o ConnectTimeout=10 -i "$SSH_KEY" "$CERBO_USER@$CERBO_HOST" 'echo OK' 2>/dev/null | grep -qx OK; then
+  echo "Cerbo/GX Key-Login ist bereits passwortlos eingerichtet."
+else
+  echo "Der öffentliche Schlüssel muss einmal auf dem Cerbo/GX installiert werden."
+  echo "Dabei wird einmal das Passwort von $CERBO_USER@$CERBO_HOST abgefragt."
+  echo
+  echo "Ausführen:"
+  echo "  ssh-copy-id -i '$SSH_KEY.pub' '$CERBO_USER@$CERBO_HOST'"
+  echo
+  echo "Danach zwingend ohne Passwort testen:"
+  echo "  ssh -o BatchMode=yes -i '$SSH_KEY' '$CERBO_USER@$CERBO_HOST' 'echo OK'"
+  echo "Erwartet: sofort OK, ohne Passwortabfrage."
+fi
+
 echo
 echo "Vicky 8.2 Upgrade abgeschlossen."
 if [[ -n "$LAN_IP" ]]; then
@@ -71,5 +87,5 @@ fi
 echo "AWTRIX MQTT Port:   1883"
 echo "Cerbo/GX Host:      $CERBO_HOST"
 echo
-echo "Prüfen: sudo ss -ltnp | grep 1883"
-echo "SSH-Test: ssh -i '$SSH_KEY' root@$CERBO_HOST 'echo OK'"
+echo "MQTT prüfen: sudo ss -ltnp | grep 1883"
+echo "SSH prüfen:  ssh -o BatchMode=yes -i '$SSH_KEY' '$CERBO_USER@$CERBO_HOST' 'echo OK'"
