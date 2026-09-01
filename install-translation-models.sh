@@ -8,6 +8,7 @@ fi
 
 BASE_DIR="${VICKY_TRANSLATION_MODELS:-$HOME/translation-models}"
 PYTHON_BIN="${VICKY_PYTHON:-$HOME/vicky8/.venv/bin/python}"
+PIP_BIN="${VICKY_PIP:-$HOME/vicky8/.venv/bin/pip}"
 CT2_BIN="${VICKY_CT2_TRANSFORMERS_CONVERTER:-$HOME/vicky8/.venv/bin/ct2-transformers-converter}"
 
 if [[ ! -x "$PYTHON_BIN" ]]; then
@@ -16,10 +17,23 @@ if [[ ! -x "$PYTHON_BIN" ]]; then
   exit 1
 fi
 
+if [[ ! -x "$PIP_BIN" ]]; then
+  echo "FEHLER: pip nicht gefunden: $PIP_BIN"
+  exit 1
+fi
+
 if [[ ! -x "$CT2_BIN" ]]; then
   echo "FEHLER: CTranslate2-Konverter nicht gefunden: $CT2_BIN"
   echo "Prüfen: $PYTHON_BIN -m pip install -r ~/vicky8/requirements.txt"
   exit 1
+fi
+
+# ct2-transformers-converter benötigt PyTorch zum Laden der Hugging-Face-Modelle.
+# PyTorch wird nur für den Konvertierungsschritt gebraucht; die fertigen
+# CTranslate2-Modelle laufen anschließend ohne torch.
+if ! "$PYTHON_BIN" -c 'import torch' >/dev/null 2>&1; then
+  echo "==> Installiere PyTorch für die Modell-Konvertierung"
+  "$PIP_BIN" install torch
 fi
 
 mkdir -p "$BASE_DIR"
