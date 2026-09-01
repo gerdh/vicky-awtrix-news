@@ -51,8 +51,8 @@ V8.2 standardizes the file to:
 
 ```text
 owner: root
- group: mosquitto
- mode: 0640
+group: mosquitto
+mode: 0640
 ```
 
 ## Fixed: stale Cerbo/GX SSH host key
@@ -68,10 +68,35 @@ Repair procedure:
 ```bash
 ssh-keygen -R 192.168.1.63
 ssh-keyscan -H 192.168.1.63 >> ~/.ssh/known_hosts
-ssh -i ~/.ssh/id_ed25519 root@192.168.1.63
 ```
 
-V8.2 includes `upgrade-vicky8.2.sh`, which performs the Mosquitto repair and refreshes the configured Cerbo/GX host key.
+## Required: passwordless Cerbo/GX SSH key
+
+The Victron service runs non-interactively with `BatchMode=yes`. A normal SSH login that asks for the Cerbo root password is therefore **not sufficient**. The MOON public key must be installed once on the Cerbo/GX.
+
+Install it with:
+
+```bash
+ssh-copy-id -i ~/.ssh/id_ed25519.pub root@192.168.1.63
+```
+
+The Cerbo root password is requested once during this step.
+
+Then verify the exact non-interactive login used by Vicky:
+
+```bash
+ssh -o BatchMode=yes -i ~/.ssh/id_ed25519 root@192.168.1.63 'echo OK'
+```
+
+The expected result is immediately:
+
+```text
+OK
+```
+
+There must be **no password prompt**. If a password is requested, `awtrix_victron.py` and the systemd service will fail even though an interactive SSH login works.
+
+V8.2 includes `upgrade-vicky8.2.sh`, which performs the Mosquitto repair, refreshes the configured Cerbo/GX host key and checks whether passwordless SSH is available. If the key is not yet authorized on the Cerbo, the script prints the required `ssh-copy-id` and `BatchMode=yes` test commands.
 
 ## Upgrade existing V8.1 installation
 
@@ -83,6 +108,8 @@ git checkout v8.2
 git pull --ff-only origin v8.2
 bash upgrade-vicky8.2.sh
 ```
+
+Use `bash upgrade-vicky8.2.sh` so the upgrade also works if the executable bit has not yet been set on a local checkout.
 
 If an automatic MQTT publish test is desired, provide the password only for the command invocation rather than storing it in Git:
 
