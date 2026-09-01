@@ -8,6 +8,7 @@ fi
 
 INSTALL_USER="${SUDO_USER:-$USER}"
 USER_HOME="$(getent passwd "$INSTALL_USER" | cut -d: -f6)"
+INSTALL_DIR="${VICKY_INSTALL_DIR:-$USER_HOME/vicky8}"
 CERBO_HOST="${VICKY_CERBO_HOST:-192.168.1.63}"
 CERBO_USER="${VICKY_CERBO_USER:-root}"
 SSH_KEY="${VICKY_CERBO_SSH_KEY:-$USER_HOME/.ssh/id_ed25519}"
@@ -50,6 +51,17 @@ else
   echo "Hinweis: Für einen automatischen MQTT-Login-Test VICKY_MQTT_PASS setzen."
 fi
 
+printf '\n==> Übersetzungsmodelle installieren/pruefen\n'
+if [[ -f "$INSTALL_DIR/install-translation-models.sh" ]]; then
+  chmod +x "$INSTALL_DIR/install-translation-models.sh"
+  VICKY_TRANSLATION_MODELS="$USER_HOME/translation-models" \
+    VICKY_PYTHON="$INSTALL_DIR/.venv/bin/python" \
+    VICKY_CT2_TRANSFORMERS_CONVERTER="$INSTALL_DIR/.venv/bin/ct2-transformers-converter" \
+    "$INSTALL_DIR/install-translation-models.sh"
+else
+  echo "WARNUNG: $INSTALL_DIR/install-translation-models.sh fehlt."
+fi
+
 printf '\n==> Cerbo/GX SSH Host-Key vorbereiten\n'
 install -d -m 0700 "$USER_HOME/.ssh"
 if [[ ! -f "$SSH_KEY" ]]; then
@@ -86,6 +98,7 @@ else
 fi
 echo "AWTRIX MQTT Port:   1883"
 echo "Cerbo/GX Host:      $CERBO_HOST"
+echo "Translation models: $USER_HOME/translation-models"
 echo
 echo "MQTT prüfen: sudo ss -ltnp | grep 1883"
 echo "SSH prüfen:  ssh -o BatchMode=yes -i '$SSH_KEY' '$CERBO_USER@$CERBO_HOST' 'echo OK'"
