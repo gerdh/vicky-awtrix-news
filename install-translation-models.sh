@@ -52,18 +52,26 @@ for entry in "${MODELS[@]}"; do
   model="${entry#*:}"
   target="$BASE_DIR/opus-mt-$pair"
 
-  if [[ -d "$target" && -f "$target/model.bin" ]]; then
-    echo "OK: $pair bereits vorhanden -> $target"
+  # MarianTokenizer braucht neben dem CT2-Modell auch die originalen
+  # SentencePiece-Dateien und vocab.json. Fehlt eine davon, muss das Modell
+  # repariert/neu konvertiert werden.
+  if [[ -d "$target" \
+        && -f "$target/model.bin" \
+        && -f "$target/source.spm" \
+        && -f "$target/target.spm" \
+        && -f "$target/vocab.json" ]]; then
+    echo "OK: $pair bereits vollständig vorhanden -> $target"
     continue
   fi
 
   echo
-  echo "==> Installiere $pair aus $model"
+  echo "==> Installiere/repariere $pair aus $model"
   rm -rf "$target.tmp"
   "$CT2_BIN" \
     --model "$model" \
     --output_dir "$target.tmp" \
     --quantization int8 \
+    --copy_files source.spm target.spm vocab.json \
     --force
 
   rm -rf "$target"
