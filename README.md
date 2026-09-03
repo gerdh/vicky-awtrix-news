@@ -3,7 +3,8 @@
 Vicky 8 is the released successor to the V7 family. It brings the AWTRIX functions used on the reference Jetson Orin installation into one documented project while keeping the individual services independent.
 
 **Stable branch: `main`**  
-**Release: `V8.1.0` / Vicky 8.1**
+**Release: `V8.1.0` / Vicky 8.1**  
+**Hugging Face Space:** https://huggingface.co/spaces/gerdh/vicky-awtrix-news
 
 Vicky 8 covers three functional areas:
 
