@@ -2,8 +2,8 @@
 
 Vicky 8 is the released successor to the V7 family. It brings the AWTRIX functions used on the reference Jetson Orin installation into one documented project while keeping the individual services independent.
 
-**Stable branch: `v8`**  
-**Release: `V8.0.0` / Vicky 8.0**
+**Stable branch: `main`**  
+**Release: `V8.1.0` / Vicky 8.1**
 
 Vicky 8 covers three functional areas:
 
@@ -219,6 +219,6 @@ V8 is intentionally a cleanup rather than another compatibility layer.
 
 Removed from the V8 runtime path are the old generative editorial chain, the unused collectors abstraction, the obsolete separate pool manager and version-specific patch helpers. V7 remains available in repository history as a rollback reference.
 
-Vicky 8.0 is published under tag `V8.0.0` from the stable `v8` branch.
+Vicky 8.1 is the current public version on the `main` branch. The earlier V8.0 release remains available under tag `V8.0.0`.
 
 See `ROADMAP.md` for future improvements and `CHANGELOG.md` for version history.
