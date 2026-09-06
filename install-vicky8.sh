@@ -31,6 +31,20 @@ read_default() {
   printf '%s' "${var:-$default}"
 }
 
+append_automation_if_missing() {
+  local automation_id="$1"
+  local source_file="$2"
+  local auto_file="$3"
+
+  if grep -q "id: ${automation_id}$" "$auto_file" 2>/dev/null || grep -q "id: '${automation_id}'$" "$auto_file" 2>/dev/null; then
+    echo "Automation $automation_id ist bereits vorhanden; keine Überschreibung."
+  else
+    printf '\n' >> "$auto_file"
+    cat "$source_file" >> "$auto_file"
+    echo "Automation $automation_id ergänzt."
+  fi
+}
+
 if ! command -v apt-get >/dev/null 2>&1; then
   echo "Dieser Installer unterstützt Debian/Ubuntu/Raspberry Pi OS mit apt."
   exit 1
@@ -95,7 +109,7 @@ if $DRY_RUN; then
   echo "  6. AWTRIX/MQTT config.py erzeugen"
   echo "  7. SSH-Key für Cerbo/GX vorbereiten"
   echo "  8. News-, Victron- und Button-systemd-Dienste anlegen"
-  echo "  9. V8-Regenautomation in Home Assistant ergänzen"
+  echo "  9. Home Assistant: Regen, USD/EUR, Gold und Enphase→Victron ergänzen"
   echo " 10. V8.1 AI-Priorisierung konfigurierbar machen"
   echo " 11. Python- und Home-Assistant-Konfiguration prüfen"
   echo
@@ -121,7 +135,8 @@ fi
 
 CERBO_HOST="$(read_default 'Cerbo/GX IP oder Hostname' '192.168.1.63')"
 CERBO_USER="$(read_default 'Cerbo/GX SSH Benutzer' 'root')"
-SSH_KEY="$(read_default 'SSH Key für Cerbo/GX' "$USER_HOME/.ssh/id_ed25519")"
+SSH_KEY="$(read_default 'SSH Key für Cerbo/GX' "$USER_HOME/.ssh/id_ed25519')"
+ENPHASE_POWER_ENTITY="$(read_default 'Home-Assistant Entity-ID für aktuelle Enphase-Produktion' 'sensor.envoy_122238059161_aktuelle_stromproduktion')"
 
 read -r -p "Lokalen Mosquitto-Broker installieren/konfigurieren? [J/n]: " INSTALL_MQTT
 INSTALL_MQTT="${INSTALL_MQTT:-J}"
@@ -310,18 +325,147 @@ EOF
 chmod +x "$INSTALL_DIR/scripts/vicky-awtrix-button"
 sudo systemctl daemon-reload
 
-say "V8 Regenautomation in Home Assistant installieren"
+say "Home-Assistant Vicky-Automationen und FX-Sensoren installieren"
 AUTO="$HA_CONFIG_DIR/automations.yaml"
+CONF="$HA_CONFIG_DIR/configuration.yaml"
 RAIN="$INSTALL_DIR/weather/rain_warning.yaml"
 mkdir -p "$HA_CONFIG_DIR"
-touch "$AUTO"
+touch "$AUTO" "$CONF"
+cp "$AUTO" "$AUTO.before-vicky8" 2>/dev/null || true
+cp "$CONF" "$CONF.before-vicky8" 2>/dev/null || true
+
+# REST-Sensoren USD/EUR, EUR/USD und Gold. Bei einem normalen 'sensor:'-Block
+# werden die Einträge idempotent eingefügt. Include-basierte sensor:-Konfigurationen
+# werden aus Sicherheitsgründen nicht automatisch verändert.
+if grep -q "name: ['\"]\?USD_EUR['\"]\?" "$CONF" 2>/dev/null; then
+  echo "FX-/Gold-Sensoren sind bereits vorhanden."
+elif grep -Eq '^sensor:[[:space:]]*!include' "$CONF"; then
+  echo "WARNUNG: configuration.yaml verwendet sensor: !include."
+  echo "FX-/Gold-Sensoren werden nicht automatisch eingefügt, um die bestehende Include-Struktur nicht zu beschädigen."
+else
+  python3 - "$CONF" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text() if path.exists() else ""
+block = '''  # Vicky 8.1 – FX und Gold, ohne API-Key
+  - platform: rest
+    name: "USD_EUR"
+    resource: "https://api.frankfurter.app/latest?from=USD&to=EUR"
+    value_template: "{{ value_json.rates.EUR | float(0) }}"
+    unit_of_measurement: "EUR"
+    scan_interval: 300
+  - platform: rest
+    name: "EUR_USD"
+    resource: "https://api.frankfurter.app/latest?from=EUR&to=USD"
+    value_template: "{{ value_json.rates.USD | float(0) }}"
+    unit_of_measurement: "USD"
+    scan_interval: 300
+  - platform: rest
+    name: "Gold_USD"
+    resource: "https://api.frankfurter.dev/v2/rate/XAU/USD"
+    value_template: "{{ value_json.rate | float(0) }}"
+    unit_of_measurement: "USD/oz"
+    scan_interval: 300
+'''
+lines = text.splitlines(True)
+for i, line in enumerate(lines):
+    if line.strip() == "sensor:" and not line.startswith((" ", "\t")):
+        lines.insert(i + 1, block)
+        path.write_text("".join(lines))
+        break
+else:
+    if text and not text.endswith("\n"):
+        text += "\n"
+    path.write_text(text + "\nsensor:\n" + block)
+PY
+  echo "USD/EUR-, EUR/USD- und Gold-Sensoren ergänzt."
+fi
+
+TMP_FX="$(mktemp)"
+cat > "$TMP_FX" <<EOF
+- alias: AWTRIX – USD/EUR Kurs alle 5 Minuten
+  id: awtrix_fx_usd_eur_every_5
+  mode: single
+  trigger:
+    - platform: time_pattern
+      minutes: /5
+    - platform: homeassistant
+      event: start
+  variables:
+    rate: '{{ states("sensor.eur_usd") | float(0) }}'
+  condition:
+    - condition: template
+      value_template: '{{ rate > 0 }}'
+  action:
+    - service: mqtt.publish
+      data:
+        topic: "${AWTRIX_UID}/notify"
+        retain: false
+        payload: >-
+          {"text":"EUR→USD: {{ rate | round(4) }}","duration":12}
+EOF
+append_automation_if_missing "awtrix_fx_usd_eur_every_5" "$TMP_FX" "$AUTO"
+rm -f "$TMP_FX"
+
+TMP_GOLD="$(mktemp)"
+cat > "$TMP_GOLD" <<EOF
+- id: awtrix_gold_every_5
+  alias: AWTRIX – Goldpreis
+  mode: single
+  trigger:
+    - platform: time_pattern
+      minutes: /5
+    - platform: homeassistant
+      event: start
+  condition:
+    - condition: template
+      value_template: '{{ states("sensor.gold_usd") not in ["unknown", "unavailable", "none", ""] }}'
+  action:
+    - service: mqtt.publish
+      data:
+        topic: "${AWTRIX_UID}/notify"
+        retain: false
+        payload: >-
+          {"text":"GOLD ${{ states('sensor.gold_usd') | float(0) | round(2) }}","icon":11627,"duration":12,"color":"FFD700"}
+EOF
+append_automation_if_missing "awtrix_gold_every_5" "$TMP_GOLD" "$AUTO"
+rm -f "$TMP_GOLD"
+
+TMP_ENPHASE="$(mktemp)"
+cat > "$TMP_ENPHASE" <<EOF
+- id: enphase_pv_an_victron_mqtt
+  alias: Enphase PV an Victron MQTT
+  description: Sendet die aktuelle Enphase-PV-Leistung an Victron über MQTT
+  trigger:
+    - platform: state
+      entity_id: ${ENPHASE_POWER_ENTITY}
+    - platform: homeassistant
+      event: start
+    - platform: time_pattern
+      minutes: /5
+  condition:
+    - condition: template
+      value_template: '{{ states("${ENPHASE_POWER_ENTITY}") not in ["unknown", "unavailable", "none"] }}'
+  action:
+    - service: mqtt.publish
+      data:
+        topic: enphase_pv/status
+        retain: true
+        payload: >-
+          {"power": {{ (states('${ENPHASE_POWER_ENTITY}') | float(0) * 1000) | round(0) }}, "voltage": 230, "current": {{ (states('${ENPHASE_POWER_ENTITY}') | float(0) * 1000 / 230) | round(2) }}}
+  mode: restart
+EOF
+append_automation_if_missing "enphase_pv_an_victron_mqtt" "$TMP_ENPHASE" "$AUTO"
+rm -f "$TMP_ENPHASE"
+
 if grep -q "1787248345937" "$AUTO"; then
   echo "Regenautomation mit ID 1787248345937 ist bereits vorhanden; keine Überschreibung."
 else
-  cp "$AUTO" "$AUTO.before-vicky8"
   printf '\n' >> "$AUTO"
   cat "$RAIN" >> "$AUTO"
-  echo "Regenautomation ergänzt. Backup: $AUTO.before-vicky8"
+  echo "Regenautomation ergänzt."
 fi
 
 say "Syntax prüfen"
@@ -352,6 +496,9 @@ echo "  - Victron AWTRIX Tiles"
 echo "  - Mosquitto MQTT"
 echo "  - Home Assistant Container"
 echo "  - V8 Regenautomation"
+echo "  - USD/EUR- und EUR/USD-Sensoren + AWTRIX-Anzeige"
+echo "  - Goldpreis-Sensor + AWTRIX-Anzeige"
+echo "  - Enphase PV → MQTT → Victron-Automation"
 if [[ "$AI_SORT" == "1" ]]; then
   echo "  - V8.1 AI-Priorisierung: aktiviert ($AI_URL)"
 else
@@ -364,13 +511,14 @@ echo "Noch einmalig erforderlich:"
 echo "1. Home Assistant öffnen: http://<IP-DIESES-RECHNERS>:8123 und Onboarding abschließen."
 echo "2. In Home Assistant die MQTT-Integration mit Broker $MQTT_HOST:1883, Benutzer $MQTT_USER einrichten."
 echo "3. In Home Assistant Météo-France einrichten, sodass die next_rain-Entität für Billiat vorhanden ist."
-echo "4. AWTRIX MQTT auf diesen Broker einstellen: Port 1883, Benutzer $MQTT_USER."
-echo "5. Cerbo/GX SSH-Key autorisieren: $SSH_KEY.pub"
+echo "4. Enphase Envoy in Home Assistant einrichten und die Produktions-Entity prüfen: $ENPHASE_POWER_ENTITY"
+echo "5. AWTRIX MQTT auf diesen Broker einstellen: Port 1883, Benutzer $MQTT_USER."
+echo "6. Cerbo/GX SSH-Key autorisieren: $SSH_KEY.pub"
 echo "   Test: ssh -i '$SSH_KEY' '$CERBO_USER@$CERBO_HOST' 'echo OK'"
 if [[ "$AI_SORT" == "1" ]]; then
-  echo "6. Lokalen AI-Server prüfen: $AI_URL"
+  echo "7. Lokalen AI-Server prüfen: $AI_URL"
 else
-  echo "6. Für die V8.1 AI-Priorisierung später einen lokalen OpenAI-kompatiblen AI-Server einrichten und VICKY_AI_IMPORTANCE_SORT=1 setzen."
+  echo "7. Für die V8.1 AI-Priorisierung später einen lokalen OpenAI-kompatiblen AI-Server einrichten und VICKY_AI_IMPORTANCE_SORT=1 setzen."
 fi
 echo
 echo "Danach testen:"
