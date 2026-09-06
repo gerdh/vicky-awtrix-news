@@ -135,7 +135,7 @@ fi
 
 CERBO_HOST="$(read_default 'Cerbo/GX IP oder Hostname' '192.168.1.63')"
 CERBO_USER="$(read_default 'Cerbo/GX SSH Benutzer' 'root')"
-SSH_KEY="$(read_default 'SSH Key für Cerbo/GX' "$USER_HOME/.ssh/id_ed25519')"
+SSH_KEY="$(read_default 'SSH Key für Cerbo/GX' "$USER_HOME/.ssh/id_ed25519")"
 ENPHASE_POWER_ENTITY="$(read_default 'Home-Assistant Entity-ID für aktuelle Enphase-Produktion' 'sensor.envoy_122238059161_aktuelle_stromproduktion')"
 
 read -r -p "Lokalen Mosquitto-Broker installieren/konfigurieren? [J/n]: " INSTALL_MQTT
@@ -428,7 +428,7 @@ cat > "$TMP_GOLD" <<EOF
         topic: "${AWTRIX_UID}/notify"
         retain: false
         payload: >-
-          {"text":"GOLD ${{ states('sensor.gold_usd') | float(0) | round(2) }}","icon":11627,"duration":12,"color":"FFD700"}
+          {"text":"GOLD \${{ states('sensor.gold_usd') | float(0) | round(2) }}","icon":11627,"duration":12,"color":"FFD700"}
 EOF
 append_automation_if_missing "awtrix_gold_every_5" "$TMP_GOLD" "$AUTO"
 rm -f "$TMP_GOLD"
