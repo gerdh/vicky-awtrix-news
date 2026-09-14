@@ -2,6 +2,19 @@
 
 All notable changes to Vicky are documented here.
 
+
+## [8.2.0] - 2026-09-14
+
+### Added
+- Independent AWTRIX market service for EUR/USD, gold and Brent crude oil.
+- Brent quote display in USD per barrel using the `BZ=F` market symbol.
+- Five-minute retained market tiles with per-provider failure isolation.
+- Unit tests for EUR/USD, gold and Brent response parsing.
+- `awtrix-markets.service` and installer support for Orin and Raspberry Pi/MOON.
+
+### Changed
+- Vicky's installer and documentation now include the market service alongside News, Rain and Victron.
+
 ## [8.0.0] - 2026-08-29
 
 ### Released
