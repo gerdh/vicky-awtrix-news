@@ -140,6 +140,13 @@ Run a single safe update for testing with:
 python markets/awtrix_markets.py --once
 ```
 
+For an existing Vicky checkout on Orin or MOON, install the service from the
+actual checkout path with:
+
+```bash
+bash scripts/install-market-service.sh
+```
+
 ### Victron display
 
 The current Victron AWTRIX script is versioned as `victron/awtrix_victron.py`. The V8 service definition is `systemd/awtrix-victron.service`.
