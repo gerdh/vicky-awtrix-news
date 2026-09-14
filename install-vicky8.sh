@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_URL="https://github.com/gerdh/vicky-awtrix-news.git"
-BRANCH="v8.2"
+BRANCH="v8.3"
 DRY_RUN=false
 
 if [[ "${1:-}" == "--dry-run" ]]; then
@@ -38,7 +38,7 @@ if ! command -v apt-get >/dev/null 2>&1; then
 fi
 
 if $DRY_RUN; then
-  say "Vicky 8.2 DRY-RUN"
+  say "Vicky 8.3 DRY-RUN"
   echo "Es werden KEINE Dateien, Pakete, Container oder Dienste verändert."
   echo "Benutzer     : $INSTALL_USER"
   echo "Architektur  : $ARCH"
@@ -58,11 +58,11 @@ if $DRY_RUN; then
   fi
 
   if [[ -d "$INSTALL_DIR/.git" ]]; then
-    echo "Vicky 8.2 Repository        vorhanden -> würde auf $BRANCH aktualisiert"
+    echo "Vicky 8.3 Repository        vorhanden -> würde auf $BRANCH aktualisiert"
   elif [[ -e "$INSTALL_DIR" ]]; then
-    echo "Vicky 8.2 Ziel              existiert, aber kein Git-Repo -> echte Installation würde ABBRECHEN"
+    echo "Vicky 8.3 Ziel              existiert, aber kein Git-Repo -> echte Installation würde ABBRECHEN"
   else
-    echo "Vicky 8.2 Repository        fehlt -> würde aus $BRANCH geklont"
+    echo "Vicky 8.3 Repository        fehlt -> würde aus $BRANCH geklont"
   fi
 
   echo
@@ -70,7 +70,7 @@ if $DRY_RUN; then
   echo "  1. Systempakete installieren/aktualisieren"
   echo "  2. Mosquitto mit LAN-Listener und korrekten Passwortdatei-Rechten konfigurieren"
   echo "  3. Docker + Home Assistant installieren, falls nötig"
-  echo "  4. Vicky 8.2 aus Branch $BRANCH klonen/aktualisieren"
+  echo "  4. Vicky 8.3 aus Branch $BRANCH klonen/aktualisieren"
   echo "  5. Python-venv und Vicky-Abhängigkeiten installieren"
   echo "  6. Sechs DE/FR/EN-Übersetzungsmodelle installieren"
   echo "  7. AWTRIX/MQTT config.py erzeugen"
@@ -83,7 +83,7 @@ if $DRY_RUN; then
   exit 0
 fi
 
-say "Vicky 8.2 Komplett-Installer"
+say "Vicky 8.3 Komplett-Installer"
 echo "Benutzer     : $INSTALL_USER"
 echo "Architektur  : $ARCH"
 echo "Git-Branch   : $BRANCH"
@@ -106,7 +106,7 @@ SSH_KEY="$(read_default 'SSH Key für Cerbo/GX' "$USER_HOME/.ssh/id_ed25519")"
 read -r -p "Lokalen Mosquitto-Broker installieren/konfigurieren? [J/n]: " INSTALL_MQTT
 INSTALL_MQTT="${INSTALL_MQTT:-J}"
 
-read -r -p "V8.2 AI-Priorisierung aktivieren? Nur wenn ein lokaler OpenAI-kompatibler AI-Server läuft. [j/N]: " ENABLE_AI_SORT
+read -r -p "V8.3 AI-Priorisierung aktivieren? Nur wenn ein lokaler OpenAI-kompatibler AI-Server läuft. [j/N]: " ENABLE_AI_SORT
 ENABLE_AI_SORT="${ENABLE_AI_SORT:-N}"
 if [[ "$ENABLE_AI_SORT" =~ ^[JjYy]$ ]]; then
   AI_SORT="1"
@@ -196,7 +196,7 @@ EOF
     ghcr.io/home-assistant/home-assistant:stable
 fi
 
-say "Vicky 8.2 holen/aktualisieren"
+say "Vicky 8.3 holen/aktualisieren"
 if [[ -d "$INSTALL_DIR/.git" ]]; then
   git -C "$INSTALL_DIR" fetch origin "$BRANCH"
   git -C "$INSTALL_DIR" checkout "$BRANCH"
@@ -251,7 +251,7 @@ PYTHON="$INSTALL_DIR/.venv/bin/python"
 
 sudo tee /etc/systemd/system/awtrix-news.service >/dev/null <<EOF
 [Unit]
-Description=Vicky V8.2 AWTRIX News Service
+Description=Vicky V8.3 AWTRIX News Service
 After=network-online.target mosquitto.service
 Wants=network-online.target
 
@@ -274,7 +274,7 @@ EOF
 
 sudo tee /etc/systemd/system/awtrix-victron.service >/dev/null <<EOF
 [Unit]
-Description=Vicky V8.2 AWTRIX Victron Tiles
+Description=Vicky V8.3 AWTRIX Victron Tiles
 After=network-online.target mosquitto.service
 Wants=network-online.target
 
@@ -296,7 +296,7 @@ EOF
 
 sudo tee /etc/systemd/system/awtrix-markets.service >/dev/null <<EOF
 [Unit]
-Description=Vicky V8.2 AWTRIX Market Tiles
+Description=Vicky V8.3 AWTRIX Market Tiles
 After=network-online.target mosquitto.service
 Wants=network-online.target
 
@@ -317,7 +317,7 @@ EOF
 
 sudo tee /etc/systemd/system/vicky-awtrix-button.service >/dev/null <<EOF
 [Unit]
-Description=Vicky V8.2 AWTRIX Button Listener
+Description=Vicky V8.3 AWTRIX Button Listener
 After=network-online.target mosquitto.service
 Wants=network-online.target
 
@@ -374,7 +374,7 @@ fi
 say "Installation abgeschlossen"
 echo
 echo "Installiert/vorbereitet:"
-echo "  - Vicky 8.2 News"
+echo "  - Vicky 8.3 News"
 echo "  - DE/FR/EN Übersetzungsmodelle"
 echo "  - AWTRIX Sprach-/Button-Steuerung"
 echo "  - Victron AWTRIX Tiles"
@@ -383,9 +383,9 @@ echo "  - Mosquitto MQTT"
 echo "  - Home Assistant Container"
 echo "  - V8 Regenautomation"
 if [[ "$AI_SORT" == "1" ]]; then
-  echo "  - V8.2 AI-Priorisierung: aktiviert ($AI_URL)"
+  echo "  - V8.3 AI-Priorisierung: aktiviert ($AI_URL)"
 else
-  echo "  - V8.2 AI-Priorisierung: vorbereitet, derzeit deaktiviert"
+  echo "  - V8.3 AI-Priorisierung: vorbereitet, derzeit deaktiviert"
 fi
 
 echo
