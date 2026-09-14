@@ -75,7 +75,7 @@ if $DRY_RUN; then
   echo "  6. Sechs DE/FR/EN-Übersetzungsmodelle installieren"
   echo "  7. AWTRIX/MQTT config.py erzeugen"
   echo "  8. SSH-Key und Cerbo/GX Host-Key vorbereiten"
-  echo "  9. News-, Victron- und Button-systemd-Dienste anlegen"
+  echo "  9. News-, Victron-, Markt- und Button-systemd-Dienste anlegen"
   echo " 10. V8-Regenautomation in Home Assistant ergänzen"
   echo " 11. Python- und Home-Assistant-Konfiguration prüfen"
   echo
@@ -294,6 +294,27 @@ Environment=VICKY_CERBO_SSH_KEY=$SSH_KEY
 WantedBy=multi-user.target
 EOF
 
+sudo tee /etc/systemd/system/awtrix-markets.service >/dev/null <<EOF
+[Unit]
+Description=Vicky V8.2 AWTRIX Market Tiles
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=$INSTALL_USER
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$PYTHON $INSTALL_DIR/markets/awtrix_markets.py
+Restart=always
+RestartSec=15
+Environment=PYTHONUNBUFFERED=1
+Environment=VICKY_MARKETS=EURUSD,GOLD,BRENT
+Environment=VICKY_MARKET_POLL_SECONDS=300
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 sudo tee /etc/systemd/system/vicky-awtrix-button.service >/dev/null <<EOF
 [Unit]
 Description=Vicky V8.2 AWTRIX Button Listener
@@ -340,6 +361,7 @@ say "Syntax prüfen"
   "$INSTALL_DIR/feed_monitor.py" \
   "$INSTALL_DIR/news_ranker.py" \
   "$INSTALL_DIR/display.py" \
+  "$INSTALL_DIR/markets/awtrix_markets.py" \
   "$INSTALL_DIR/victron/awtrix_victron.py"
 
 if sudo docker ps --format '{{.Names}}' | grep -qx homeassistant; then
@@ -356,6 +378,7 @@ echo "  - Vicky 8.2 News"
 echo "  - DE/FR/EN Übersetzungsmodelle"
 echo "  - AWTRIX Sprach-/Button-Steuerung"
 echo "  - Victron AWTRIX Tiles"
+echo "  - EUR/USD-, Gold- und Brent-Marktkurse"
 echo "  - Mosquitto MQTT"
 echo "  - Home Assistant Container"
 echo "  - V8 Regenautomation"
@@ -391,9 +414,10 @@ echo
 echo "Danach testen:"
 echo "   cd '$INSTALL_DIR' && '$PYTHON' victron/awtrix_victron.py"
 echo "   cd '$INSTALL_DIR' && '$PYTHON' awtrix_news_vicki.py"
+echo "   cd '$INSTALL_DIR' && '$PYTHON' markets/awtrix_markets.py --once"
 echo
 echo "Wenn beide Tests funktionieren:"
-echo "   sudo systemctl enable --now awtrix-news awtrix-victron vicky-awtrix-button"
+echo "   sudo systemctl enable --now awtrix-news awtrix-victron awtrix-markets vicky-awtrix-button"
 echo
 echo "Status:"
-echo "   systemctl --no-pager --full status awtrix-news awtrix-victron vicky-awtrix-button"
+echo "   systemctl --no-pager --full status awtrix-news awtrix-victron awtrix-markets vicky-awtrix-button"
