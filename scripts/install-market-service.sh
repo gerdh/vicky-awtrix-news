@@ -28,7 +28,7 @@ TMP_SERVICE="$(mktemp)"
 trap 'rm -f "$TMP_SERVICE"' EXIT
 cat >"$TMP_SERVICE" <<EOF
 [Unit]
-Description=Vicky V8.2 AWTRIX Market Tiles
+Description=Vicky V8.3 AWTRIX Market Tiles
 After=network-online.target mosquitto.service
 Wants=network-online.target
 
