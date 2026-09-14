@@ -13,7 +13,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from display import publish
 
 POLL_SECONDS = max(60, int(os.environ.get("VICKY_MARKET_POLL_SECONDS", "300")))
 HTTP_TIMEOUT = max(3, int(os.environ.get("VICKY_MARKET_HTTP_TIMEOUT", "15")))
@@ -107,7 +106,14 @@ def enabled_markets():
     return names
 
 
-def publish_once(fetcher=fetch_json):
+def publish_tile(topic, text, color):
+    # Import only when publishing so parser tests do not require a local config.py.
+    from display import publish
+
+    publish(topic, text, color=color, duration=12)
+
+
+def publish_once(fetcher=fetch_json, publisher=publish_tile):
     published = 0
     for name in enabled_markets():
         market = MARKETS[name]
@@ -115,7 +121,7 @@ def publish_once(fetcher=fetch_json):
             payload = fetcher(market["url"])
             price = market["extract"](payload)
             text = market["text"](price)
-            publish(market["topic"], text, color=market["color"], duration=12)
+            publisher(market["topic"], text, market["color"])
             print(f"{name}: {text}", flush=True)
             published += 1
         except Exception as error:
