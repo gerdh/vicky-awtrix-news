@@ -110,7 +110,7 @@ def publish_tile(topic, text, color):
     # Import only when publishing so parser tests do not require a local config.py.
     from display import publish
 
-    publish(topic, text, color=color, duration=12)
+    publish(topic, text, color=color, repeat=2)
 
 
 def publish_once(fetcher=fetch_json, publisher=publish_tile):
