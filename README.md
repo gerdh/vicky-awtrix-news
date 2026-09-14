@@ -2,14 +2,15 @@
 
 Vicky 8 is the released successor to the V7 family. It brings the AWTRIX functions used on the reference Jetson Orin installation into one documented project while keeping the individual services independent.
 
-**Stable branch: `v8`**  
-**Release: `V8.0.0` / Vicky 8.0**
+**Stable branch: `v8.2`**  
+**Release: `V8.2.0` / Vicky 8.2**
 
 Vicky 8 covers three functional areas:
 
 - multilingual news bulletins
 - local rain warnings from Home Assistant / Météo-France
 - the Victron energy display stack
+- EUR/USD, gold and Brent market-price tiles
 
 The news and rain-warning components share one persistent output language: French, German or English. The compact Victron labels (`Sol`, `Batt`, `In`, `Out`) stay language-neutral because they are intentionally short and widely understandable.
 
@@ -118,6 +119,27 @@ The warning follows Vicky's selected language:
 
 The same logic covers light rain and rain starting immediately.
 
+### Market prices
+
+Vicky 8.2 adds an independent market-price service in `markets/awtrix_markets.py`.
+Every five minutes it publishes three retained AWTRIX custom apps:
+
+- `EUR/USD 1.2345`
+- `Gold $2345.67/oz`
+- `Brent $81.25/bbl`
+
+EUR/USD and gold use the same no-key Frankfurter sources prepared by Vicky 8.1.
+Brent uses the Yahoo Finance `BZ=F` quote. Provider URLs, HTTP timeout,
+poll interval and the enabled market list can be overridden with environment
+variables. A temporary provider failure leaves the last retained value visible
+and does not affect News, Rain or Victron.
+
+Run a single safe update for testing with:
+
+```bash
+python markets/awtrix_markets.py --once
+```
+
 ### Victron display
 
 The current Victron AWTRIX script is versioned as `victron/awtrix_victron.py`. The V8 service definition is `systemd/awtrix-victron.service`.
@@ -171,9 +193,11 @@ A fresh Home Assistant installation still requires its one-time UI onboarding, M
 - `scripts/vicky-awtrix-button` – left/right AWTRIX button controller and shared MQTT language state
 - `weather/rain_warning.yaml` – multilingual Home Assistant rain warning
 - `victron/awtrix_victron.py` – Victron AWTRIX display logic
+- `markets/awtrix_markets.py` – EUR/USD, gold and Brent AWTRIX market tiles
 - `systemd/awtrix-news.service` – V8 news service
 - `systemd/vicky-awtrix-button.service` – V8 button listener
 - `systemd/awtrix-victron.service` – V8 Victron display service
+- `systemd/awtrix-markets.service` – V8.2 market-price service
 - `install-vicky8.sh` – complete installer and `--dry-run` checker
 
 ## Requirements
@@ -193,6 +217,12 @@ A fresh Home Assistant installation still requires its one-time UI onboarding, M
 - MQTT integration connected to the same broker
 - Météo-France `next_rain` sensor for the configured location
 
+### Market prices
+
+- outbound HTTPS access to the configured quote providers
+- MQTT access to the AWTRIX broker
+- no market-data API key is required by the default configuration
+
 ### Victron display
 
 - network access from the host to the Victron GX / Cerbo system
@@ -209,7 +239,7 @@ Vicky 8 was developed and validated on a reference installation consisting of:
 - Victron GX / Cerbo system on the local network
 - local translation models
 
-The V8 validation covered the News service, RSS feeds, French/German/English language switching, retained MQTT language state, Home Assistant language discovery, multilingual rain warning and Victron `Sol`, `Batt`, `In` / `Out` display.
+The V8 validation covered the News service, RSS feeds, French/German/English language switching, retained MQTT language state, Home Assistant language discovery, multilingual rain warning, Victron `Sol`, `Batt`, `In` / `Out` display and the V8.2 EUR/USD, gold and Brent market parsers.
 
 Hostnames, addresses, credentials, AWTRIX UIDs and Home Assistant entity IDs are installation-specific and should be treated as configuration, not portable defaults.
 
