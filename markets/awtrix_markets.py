@@ -36,7 +36,7 @@ def fetch_json(url, timeout=HTTP_TIMEOUT):
         url,
         headers={
             "Accept": "application/json",
-            "User-Agent": "Vicky-AWTRIX/8.2",
+            "User-Agent": "Vicky-AWTRIX/8.3",
         },
     )
     with urlopen(request, timeout=timeout) as response:
