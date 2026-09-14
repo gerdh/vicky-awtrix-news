@@ -1,0 +1,18 @@
+[Unit]
+Description=Vicky V8.2 AWTRIX Market Tiles
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gerd
+WorkingDirectory=/home/gerd/vicky8
+ExecStart=/home/gerd/vicky8/.venv/bin/python /home/gerd/vicky8/markets/awtrix_markets.py
+Restart=always
+RestartSec=15
+Environment=PYTHONUNBUFFERED=1
+Environment=VICKY_MARKETS=EURUSD,GOLD,BRENT
+Environment=VICKY_MARKET_POLL_SECONDS=300
+
+[Install]
+WantedBy=multi-user.target
