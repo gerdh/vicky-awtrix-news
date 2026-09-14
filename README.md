@@ -2,8 +2,8 @@
 
 Vicky 8 is the released successor to the V7 family. It brings the AWTRIX functions used on the reference Jetson Orin installation into one documented project while keeping the individual services independent.
 
-**Stable branch: `v8.2`**  
-**Release: `V8.2.0` / Vicky 8.2**
+**Stable branch: `v8.3`**  
+**Release: `V8.3.0` / Vicky 8.3**
 
 Vicky 8 covers three functional areas:
 
@@ -121,7 +121,7 @@ The same logic covers light rain and rain starting immediately.
 
 ### Market prices
 
-Vicky 8.2 adds an independent market-price service in `markets/awtrix_markets.py`.
+Vicky 8.3 includes an independent market-price service in `markets/awtrix_markets.py`.
 Every five minutes it publishes three retained AWTRIX custom apps:
 
 - `EUR/USD 1.2345`
@@ -204,7 +204,7 @@ A fresh Home Assistant installation still requires its one-time UI onboarding, M
 - `systemd/awtrix-news.service` – V8 news service
 - `systemd/vicky-awtrix-button.service` – V8 button listener
 - `systemd/awtrix-victron.service` – V8 Victron display service
-- `systemd/awtrix-markets.service` – V8.2 market-price service
+- `systemd/awtrix-markets.service` – V8.3 market-price service
 - `install-vicky8.sh` – complete installer and `--dry-run` checker
 
 ## Requirements
@@ -246,7 +246,7 @@ Vicky 8 was developed and validated on a reference installation consisting of:
 - Victron GX / Cerbo system on the local network
 - local translation models
 
-The V8 validation covered the News service, RSS feeds, French/German/English language switching, retained MQTT language state, Home Assistant language discovery, multilingual rain warning, Victron `Sol`, `Batt`, `In` / `Out` display and the V8.2 EUR/USD, gold and Brent market parsers.
+The V8 validation covered the News service, RSS feeds, French/German/English language switching, retained MQTT language state, Home Assistant language discovery, multilingual rain warning, Victron `Sol`, `Batt`, `In` / `Out` display and the V8.3 EUR/USD, gold and Brent market parsers.
 
 Hostnames, addresses, credentials, AWTRIX UIDs and Home Assistant entity IDs are installation-specific and should be treated as configuration, not portable defaults.
 
