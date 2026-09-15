@@ -1,6 +1,6 @@
 # Vicky 8 – AWTRIX information stack
 
-Vicky 8 is the released successor to the V7 family. It brings the AWTRIX functions used on the reference Jetson Orin installation into one documented project while keeping the individual services independent.
+Vicky 8 is the released successor to the V7 family. It brings the AWTRIX functions used on the Rasperry Pi 99 and on the reference Jetson Orin installation into one documented project while keeping the individual services independent.
 
 **Stable branch: `v8.3`**  
 **Release: `V8.3.0` / Vicky 8.3**  
@@ -17,7 +17,7 @@ The news and rain-warning components share one persistent output language: Frenc
 
 ## AI / machine-learning scope
 
-Vicky 8 is **not a generative-AI news editor**. The news pipeline is intentionally deterministic: RSS retrieval, feed-health checks, duplicate/history filtering, ranking and safe headline handling are performed with normal program logic rather than a free-form large language model.
+Vicky 8 is ** not a generative-AI news editor**. The news pipeline is intentionally deterministic: RSS retrieval, feed-health checks, duplicate/history filtering, ranking and safe headline handling are performed with normal program logic rather than a free-form large language model.
 
 Vicky 8 does use local neural machine-translation models through CTranslate2 / OPUS-MT for French, German and English translation. That translation layer can reasonably be described as local AI/ML, but the overall system is not "fully AI based".
 
@@ -31,7 +31,7 @@ The V8 design therefore favors:
 - predictable behavior: headlines follow a controlled processing path
 - source integrity: one story remains one story and is not merged with another
 - easier fault diagnosis and testing
-- lower CPU/RAM and model-management overhead on the always-on Orin
+- lower CPU/RAM and model-management overhead on the always-on Orin or Raspberry Pi
 - graceful fallback: if translation fails, Vicky shows the original headline instead of generating substitute content
 
 In short: **local AI-assisted translation, deterministic news processing**.
@@ -114,9 +114,9 @@ It checks the one-hour rain forecast every 5 minutes and publishes an AWTRIX war
 
 The warning follows Vicky's selected language:
 
-- French: `Pluie dans 20 min.` / `Forte pluie dans 20 min.`
-- German: `Regen in 20 Min.` / `Starker Regen in 20 Min.`
-- English: `Rain in 20 min.` / `Heavy rain in 20 min.`
+- French: `Pluie dans 20 min.` / ` pluie dans 20 min.`
+- German: `Regen in 20 Min.` / `Regen in 20 Min.`
+- English: `Rain in 20 min.` / ` rain in 20 min.`
 
 The same logic covers light rain and rain starting immediately.
 
@@ -150,7 +150,7 @@ bash scripts/install-market-service.sh
 
 ### Victron display
 
-The current Victron AWTRIX script is versioned as `victron/awtrix_victron.py`. The V8 service definition is `systemd/awtrix-victron.service`.
+The current Victron AWTRIX script is versioned as `victron/awtrix_victron.py`. The V8 service definition is `systemd/awtrix-victron.service`. It is only implemented in Nvidias Orin Nano and not on the Raspberry PI;
 
 It connects from the Orin to the Cerbo/GX system over SSH, reads Victron D-Bus values and publishes compact AWTRIX pages independently from the News and Rain services.
 
@@ -203,10 +203,10 @@ A fresh Home Assistant installation still requires its one-time UI onboarding, M
 - `victron/awtrix_victron.py` – Victron AWTRIX display logic
 - `markets/awtrix_markets.py` – EUR/USD, gold and Brent AWTRIX market tiles
 - `systemd/awtrix-news.service` – V8 news service
-- `systemd/vicky-awtrix-button.service` – V8 button listener
+- `systemd/vicky-awtrix-button.service` – V8 physical button listener 
 - `systemd/awtrix-victron.service` – V8 Victron display service
 - `systemd/awtrix-markets.service` – V8.3 market-price service
-- `install-vicky8.sh` – complete installer and `--dry-run` checker
+- `install-vicky8.sh` – complete installer and `--dry-run` checker for RaspberryPi 5  and Orin Nano super
 
 ## Requirements
 
@@ -233,7 +233,7 @@ A fresh Home Assistant installation still requires its one-time UI onboarding, M
 
 ### Victron display
 
-- network access from the host to the Victron GX / Cerbo system
+- network access from the host to the Victron GX / Cerbo gx system
 - passwordless SSH key access to the GX device
 - working Victron D-Bus values on the GX device
 - MQTT access to the AWTRIX broker
@@ -244,10 +244,10 @@ Vicky 8 was developed and validated on a reference installation consisting of:
 
 - NVIDIA Jetson Orin running Vicky, Home Assistant and Mosquitto
 - AWTRIX Light
-- Victron GX / Cerbo system on the local network
+- Victron GX / Cerbo gx system on the local network
 - local translation models
 
-The V8 validation covered the News service, RSS feeds, French/German/English language switching, retained MQTT language state, Home Assistant language discovery, multilingual rain warning, Victron `Sol`, `Batt`, `In` / `Out` display and the V8.3 EUR/USD, gold and Brent market parsers.
+The V8 validation covered the News service, RSS feeds, French/German/English language switching, retained MQTT language state, Home Assistant language discovery, multilingual rain warning, Victron `Sol`, `Batt`, `In` / `Out` display and the V8.3 EUR/USD, Gold and Brent market parsers.
 
 Hostnames, addresses, credentials, AWTRIX UIDs and Home Assistant entity IDs are installation-specific and should be treated as configuration, not portable defaults.
 
