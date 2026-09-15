@@ -3,18 +3,38 @@ set -u
 
 VICKY_DIR="${VICKY_DIR:-/home/gerd/vicky8}"
 AWTRIX_UID="${AWTRIX_UID:-awtrix_3e6014}"
-MQTT_HOST="${MQTT_HOST:-localhost}"
 LANGUAGE_STATE_TOPIC="${LANGUAGE_STATE_TOPIC:-vicky/state/language}"
 LANGUAGE_DISCOVERY_TOPIC="${LANGUAGE_DISCOVERY_TOPIC:-homeassistant/sensor/vicky_language/config}"
+PYTHON_BIN="${VICKY_PYTHON:-$VICKY_DIR/.venv/bin/python}"
+
+# Read the same MQTT settings used by the Vicky Python services. Environment
+# variables can still override them when desired.
+read_config_value() {
+    key="$1"
+    "$PYTHON_BIN" -c "import sys; sys.path.insert(0, '$VICKY_DIR'); import config; print(getattr(config, '$key', ''))" 2>/dev/null || true
+}
+
+MQTT_HOST="${MQTT_HOST:-$(read_config_value MQTT_HOST)}"
+MQTT_USER="${MQTT_USER:-$(read_config_value MQTT_USER)}"
+MQTT_PASS="${MQTT_PASS:-$(read_config_value MQTT_PASS)}"
+MQTT_HOST="${MQTT_HOST:-localhost}"
+
+MQTT_AUTH=()
+if [ -n "$MQTT_USER" ]; then
+    MQTT_AUTH+=( -u "$MQTT_USER" )
+fi
+if [ -n "$MQTT_PASS" ]; then
+    MQTT_AUTH+=( -P "$MQTT_PASS" )
+fi
 
 publish_language_state() {
     lang="$1"
 
-    /usr/bin/mosquitto_pub -h "$MQTT_HOST" -r \
+    /usr/bin/mosquitto_pub -h "$MQTT_HOST" "${MQTT_AUTH[@]}" -r \
       -t "$LANGUAGE_DISCOVERY_TOPIC" \
       -m "{\"name\":\"Vicky Language\",\"unique_id\":\"vicky_language\",\"state_topic\":\"$LANGUAGE_STATE_TOPIC\",\"icon\":\"mdi:translate\"}"
 
-    /usr/bin/mosquitto_pub -h "$MQTT_HOST" -r \
+    /usr/bin/mosquitto_pub -h "$MQTT_HOST" "${MQTT_AUTH[@]}" -r \
       -t "$LANGUAGE_STATE_TOPIC" \
       -m "$lang"
 }
@@ -22,14 +42,18 @@ publish_language_state() {
 # Publish the already selected language at service start so Home Assistant and
 # every Vicky component share one persistent language state.
 if cd "$VICKY_DIR" 2>/dev/null; then
-    current_lang=$(/usr/bin/python3 -c 'from language_state import load_output_language; print(load_output_language())' 2>/dev/null || true)
+    current_lang=$("$PYTHON_BIN" -c 'from language_state import load_output_language; print(load_output_language())' 2>/dev/null || true)
     case "$current_lang" in
         fr|de|en) publish_language_state "$current_lang" ;;
     esac
 fi
 
+# The listener must stay connected. If authentication or the broker fails,
+# propagate a non-zero exit status so systemd records a real failure.
+set -o pipefail
 /usr/bin/mosquitto_sub \
   -h "$MQTT_HOST" \
+  "${MQTT_AUTH[@]}" \
   -v \
   -t "$AWTRIX_UID/stats/buttonLeft" \
   -t "$AWTRIX_UID/stats/buttonRight" |
@@ -46,7 +70,7 @@ do
 
         "$AWTRIX_UID/stats/buttonRight")
             cd "$VICKY_DIR" || continue
-            lang=$(/usr/bin/python3 -c 'from language_state import cycle_output_language; print(cycle_output_language())')
+            lang=$("$PYTHON_BIN" -c 'from language_state import cycle_output_language; print(cycle_output_language())')
             echo "Vicky language switched to: $lang"
 
             publish_language_state "$lang"
@@ -58,7 +82,7 @@ do
                 *)  label="$lang" ;;
             esac
 
-            /usr/bin/mosquitto_pub -h "$MQTT_HOST" \
+            /usr/bin/mosquitto_pub -h "$MQTT_HOST" "${MQTT_AUTH[@]}" \
               -t "$AWTRIX_UID/notify" \
               -m "{\"text\":\"SPRACHE: $label\",\"duration\":3}"
 
