@@ -117,7 +117,7 @@ sudo systemctl enable --now awtrix-news awtrix-markets awtrix-victron vicky-awtr
 Run:
 
 ```bash
-.venv/bin/pytest -q
+PYTHONPATH=. .venv/bin/pytest -q
 ```
 
 The V9 contract tests protect the three market names, their explicit non-white colors and exactly two display repetitions.
