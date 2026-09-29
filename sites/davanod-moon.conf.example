@@ -1,0 +1,10 @@
+# Vicky 9 site profile: Davanod
+# Copy values through scripts/configure-site.sh; do not store passwords here.
+VICKY_SITE=davanod
+VICKY_HARDWARE=raspberry-pi-5-moon
+AWTRIX_IP=192.168.1.86
+AWTRIX_UID=REPLACE_WITH_DAVANOD_AWTRIX_UID
+MQTT_HOST=127.0.0.1
+MQTT_PORT=1883
+VICKY_CERBO_HOST=192.168.1.63
+VICKY_CERBO_USER=root
