@@ -33,3 +33,6 @@ config.py
 
 # Local development backups
 *.before-*
+
+# Vicky 9 generated local site identity
+.vicky-site
