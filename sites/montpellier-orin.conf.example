@@ -1,0 +1,10 @@
+# Vicky 9 site profile: Montpellier
+# Copy values through scripts/configure-site.sh; do not store passwords here.
+VICKY_SITE=montpellier
+VICKY_HARDWARE=jetson-orin
+AWTRIX_IP=192.168.1.86
+AWTRIX_UID=REPLACE_WITH_MONTPELLIER_AWTRIX_UID
+MQTT_HOST=127.0.0.1
+MQTT_PORT=1883
+VICKY_CERBO_HOST=192.168.1.63
+VICKY_CERBO_USER=root
