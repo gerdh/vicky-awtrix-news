@@ -2,6 +2,23 @@
 
 All notable changes to Vicky are documented here.
 
+## [9.0.0] - 2026-09-29
+
+### Added
+- Coordinated two-site architecture for Montpellier/Orin and Davanod/Moon.
+- Independent non-secret site-profile templates.
+- Site configuration generator that creates a local ignored `config.py`.
+- Path-independent Vicky 9 systemd installer.
+- Separate installation guides for Montpellier and Davanod.
+- Architecture documentation explaining identical private AWTRIX IPs and different UIDs.
+- Contract tests for EUR/USD, Gold and Brent colors and exactly two repetitions.
+
+### Changed
+- GitHub `main` is the common source of truth for both hardware platforms.
+- Site, hardware, broker and AWTRIX identity are local configuration rather than source branches.
+- Duplicate-message diagnosis is explicitly local because the two MQTT installations are not connected.
+
+
 
 ## [8.3.0] - 2026-09-14
 
