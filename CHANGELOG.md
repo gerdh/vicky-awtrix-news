@@ -2,6 +2,11 @@
 
 All notable changes to Vicky are documented here.
 
+## Unreleased
+
+### Added
+- NVIDIA (NVDA) market tile in NVIDIA green, with exactly two repetitions at both sites.
+
 ## [9.0.0] - 2026-09-29
 
 ### Added

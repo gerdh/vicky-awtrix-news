@@ -22,7 +22,7 @@ See [V9 architecture](docs/ARCHITECTURE-V9.md), [Montpellier/Orin installation](
 - persistent language state and AWTRIX button control
 - optional Home Assistant/Météo-France rain warning
 - Victron values read from Cerbo/GX D-Bus over SSH
-- EUR/USD, Gold and Brent market tiles
+- EUR/USD, Gold, Brent and NVIDIA market tiles
 - independent systemd services so one component failure does not stop the others
 
 Vicky does not use generative AI to rewrite factual news. If local translation fails, it keeps the source headline.
@@ -50,13 +50,14 @@ The legacy Home Assistant endpoint `http://192.168.1.86/api/notify` is not the n
 
 ## Market display contract
 
-Every five minutes `markets/awtrix_markets.py` publishes three retained custom apps:
+Every five minutes `markets/awtrix_markets.py` publishes four retained custom apps:
 
 | Tile | Topic suffix | Color | Repetitions |
 |---|---|---|---|
 | EUR/USD | `market_eurusd` | `00FFFF` | 2 |
 | Gold | `market_gold` | `FFD700` | 2 |
 | Brent | `market_brent` | `FF8C00` | 2 |
+| NVIDIA | `market_nvidia` | `76B900` | 2 |
 
 The code calls `publish(..., color=<explicit color>, repeat=2)`. It does not publish the same tile twice in an outer loop. A duplicate must be diagnosed locally for multiple services, manual processes, old Home Assistant automations, cron jobs or restart loops.
 
@@ -104,7 +105,7 @@ sudo systemctl enable --now awtrix-news awtrix-markets awtrix-victron vicky-awtr
 
 - `awtrix_news_vicki.py` – news service
 - `display.py` – retained MQTT/AWTRIX publishing
-- `markets/awtrix_markets.py` – EUR/USD, Gold and Brent
+- `markets/awtrix_markets.py` – EUR/USD, Gold, Brent and NVIDIA
 - `victron/awtrix_victron.py` – Victron D-Bus display
 - `scripts/vicky-awtrix-button` – button and language controller
 - `weather/rain_warning.yaml` – Home Assistant rain-warning example

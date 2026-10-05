@@ -308,7 +308,7 @@ ExecStart=$PYTHON $INSTALL_DIR/markets/awtrix_markets.py
 Restart=always
 RestartSec=15
 Environment=PYTHONUNBUFFERED=1
-Environment=VICKY_MARKETS=EURUSD,GOLD,BRENT
+Environment=VICKY_MARKETS=EURUSD,GOLD,BRENT,NVIDIA
 Environment=VICKY_MARKET_POLL_SECONDS=300
 
 [Install]
@@ -378,7 +378,7 @@ echo "  - Vicky 8.3 News"
 echo "  - DE/FR/EN Übersetzungsmodelle"
 echo "  - AWTRIX Sprach-/Button-Steuerung"
 echo "  - Victron AWTRIX Tiles"
-echo "  - EUR/USD-, Gold- und Brent-Marktkurse"
+echo "  - EUR/USD-, Gold-, Brent- und NVIDIA-Marktkurse"
 echo "  - Mosquitto MQTT"
 echo "  - Home Assistant Container"
 echo "  - V8 Regenautomation"
