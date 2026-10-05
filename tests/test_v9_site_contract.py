@@ -5,10 +5,11 @@ from markets.awtrix_markets import MARKETS, publish_tile
 
 
 def test_market_names_and_colors_are_fixed():
-    assert list(MARKETS) == ["EURUSD", "GOLD", "BRENT"]
+    assert list(MARKETS) == ["EURUSD", "GOLD", "BRENT", "NVIDIA"]
     assert MARKETS["EURUSD"]["color"] == "00FFFF"
     assert MARKETS["GOLD"]["color"] == "FFD700"
     assert MARKETS["BRENT"]["color"] == "FF8C00"
+    assert MARKETS["NVIDIA"]["color"] == "76B900"
     assert all(item["color"] not in {"FFFFFF", "CCCCCC", ""} for item in MARKETS.values())
 
 

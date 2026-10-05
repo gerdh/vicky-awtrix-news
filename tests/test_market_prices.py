@@ -4,6 +4,7 @@ from markets.awtrix_markets import (
     extract_brent_usd,
     extract_eur_usd,
     extract_gold_usd,
+    extract_nvidia_usd,
 )
 
 
@@ -36,3 +37,8 @@ def test_extract_brent_rejects_missing_price():
     payload = {"chart": {"result": [{"meta": {}, "indicators": {"quote": [{}]}}]}}
     with pytest.raises(ValueError):
         extract_brent_usd(payload)
+
+
+def test_extract_nvidia_regular_market_price():
+    payload = {"chart": {"result": [{"meta": {"regularMarketPrice": 187.62}}]}}
+    assert extract_nvidia_usd(payload) == 187.62
