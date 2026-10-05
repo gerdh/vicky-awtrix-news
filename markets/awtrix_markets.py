@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish EUR/USD, gold and Brent prices as retained AWTRIX custom apps."""
+"""Publish EUR/USD, gold, Brent and NVIDIA prices as retained AWTRIX custom apps."""
 
 import argparse
 import json
@@ -28,6 +28,10 @@ GOLD_USD_URL = os.environ.get(
 BRENT_USD_URL = os.environ.get(
     "VICKY_BRENT_USD_URL",
     "https://query1.finance.yahoo.com/v8/finance/chart/BZ%3DF?interval=5m&range=1d",
+)
+NVIDIA_USD_URL = os.environ.get(
+    "VICKY_NVIDIA_USD_URL",
+    "https://query1.finance.yahoo.com/v8/finance/chart/NVDA?interval=5m&range=1d",
 )
 
 
@@ -58,18 +62,26 @@ def extract_gold_usd(payload):
     return positive_number(payload["rate"], "gold")
 
 
-def extract_brent_usd(payload):
+def extract_yahoo_price(payload, name):
     result = payload["chart"]["result"]
     if not result:
-        raise ValueError("Brent response contains no result")
+        raise ValueError(f"{name} response contains no result")
     meta = result[0]["meta"]
     value = meta.get("regularMarketPrice")
     if value is None:
         closes = result[0].get("indicators", {}).get("quote", [{}])[0].get("close", [])
         value = next((close for close in reversed(closes) if close is not None), None)
     if value is None:
-        raise ValueError("Brent response contains no current price")
-    return positive_number(value, "Brent")
+        raise ValueError(f"{name} response contains no current price")
+    return positive_number(value, name)
+
+
+def extract_brent_usd(payload):
+    return extract_yahoo_price(payload, "Brent")
+
+
+def extract_nvidia_usd(payload):
+    return extract_yahoo_price(payload, "NVIDIA")
 
 
 MARKETS = {
@@ -94,11 +106,18 @@ MARKETS = {
         "text": lambda price: f"Brent ${price:.2f}/bbl",
         "color": "FF8C00",
     },
+    "NVIDIA": {
+        "url": NVIDIA_USD_URL,
+        "extract": extract_nvidia_usd,
+        "topic": "market_nvidia",
+        "text": lambda price: f"NVIDIA ${price:.2f}",
+        "color": "76B900",
+    },
 }
 
 
 def enabled_markets():
-    requested = os.environ.get("VICKY_MARKETS", "EURUSD,GOLD,BRENT")
+    requested = os.environ.get("VICKY_MARKETS", "EURUSD,GOLD,BRENT,NVIDIA")
     names = [name.strip().upper() for name in requested.split(",") if name.strip()]
     unknown = [name for name in names if name not in MARKETS]
     if unknown:
