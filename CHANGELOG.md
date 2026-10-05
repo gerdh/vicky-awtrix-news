@@ -4,8 +4,13 @@ All notable changes to Vicky are documented here.
 
 ## Unreleased
 
+## [9.1.0] - 2026-10-05
+
 ### Added
 - NVIDIA (NVDA) market tile in NVIDIA green, with exactly two repetitions at both sites.
+
+### Changed
+- Market service defaults, installers, systemd units, architecture documentation, site installation guides and contract tests now use the same four-market contract: EUR/USD, Gold, Brent and NVIDIA.
 
 ## [9.0.0] - 2026-09-29
 

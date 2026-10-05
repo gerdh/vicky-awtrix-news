@@ -1,4 +1,4 @@
-# Vicky 9 – coordinated two-site AWTRIX stack
+# Vicky 9.1 – coordinated two-site AWTRIX stack
 
 Vicky 9 runs the same versioned information stack at two independent sites:
 
@@ -8,7 +8,7 @@ Vicky 9 runs the same versioned information stack at two independent sites:
 | Davanod | Moon | Raspberry Pi 5 | local MQTT and local AWTRIX |
 
 **Stable branch:** `main`  
-**Release:** `V9.0.0` / Vicky 9.0  
+**Release:** `V9.1.0` / Vicky 9.1
 **Hugging Face Space:** https://huggingface.co/spaces/gerdh/vicky-awtrix-news
 
 The sites are not connected at runtime. Each has its own broker and AWTRIX UID. Both AWTRIX devices may use the same private IP address `192.168.1.86` because they are on separate LANs. GitHub coordinates code, tests, documentation and releases; it does not bridge MQTT traffic.
@@ -123,4 +123,4 @@ PYTHONPATH=. .venv/bin/pytest -q
 
 The V9 contract tests protect the four market names, their explicit non-white colors and exactly two display repetitions.
 
-See [RELEASE-9.0.md](RELEASE-9.0.md) and [CHANGELOG.md](CHANGELOG.md) for release details.
+See [RELEASE-9.1.md](RELEASE-9.1.md) and [CHANGELOG.md](CHANGELOG.md) for release details.
