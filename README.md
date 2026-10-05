@@ -121,6 +121,6 @@ Run:
 PYTHONPATH=. .venv/bin/pytest -q
 ```
 
-The V9 contract tests protect the three market names, their explicit non-white colors and exactly two display repetitions.
+The V9 contract tests protect the four market names, their explicit non-white colors and exactly two display repetitions.
 
 See [RELEASE-9.0.md](RELEASE-9.0.md) and [CHANGELOG.md](CHANGELOG.md) for release details.
