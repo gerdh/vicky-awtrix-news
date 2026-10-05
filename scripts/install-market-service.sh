@@ -40,7 +40,7 @@ ExecStart=$PYTHON $REPO_ROOT/markets/awtrix_markets.py
 Restart=always
 RestartSec=15
 Environment=PYTHONUNBUFFERED=1
-Environment=VICKY_MARKETS=EURUSD,GOLD,BRENT
+Environment=VICKY_MARKETS=EURUSD,GOLD,BRENT,NVIDIA
 Environment=VICKY_MARKET_POLL_SECONDS=300
 
 [Install]
