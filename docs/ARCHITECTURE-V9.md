@@ -16,9 +16,9 @@ GitHub coordinates source code, tests, documentation and releases. It does not b
 - One local publisher per AWTRIX topic and site.
 - `BASE_TOPIC=<local AWTRIX UID>/custom`.
 - Local MQTT credentials and real AWTRIX UIDs are never committed.
-- Market tiles are EUR/USD, Gold and Brent.
+- Market tiles are EUR/USD, Gold, Brent and NVIDIA.
 - Every market tile sets `repeat: 2`.
-- Market colors are explicit: EUR/USD `00FFFF`, Gold `FFD700`, Brent `FF8C00`.
+- Market colors are explicit: EUR/USD `00FFFF`, Gold `FFD700`, Brent `FF8C00`, NVIDIA `76B900`.
 - Neither site relies on the legacy Home Assistant endpoint `http://192.168.1.86/api/notify` for normal Vicky custom apps.
 - Site and hardware differences live in local configuration, not separate drifting source branches.
 

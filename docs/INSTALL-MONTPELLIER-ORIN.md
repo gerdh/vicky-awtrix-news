@@ -47,7 +47,7 @@ bash scripts/install-vicky9-services.sh
 systemctl --no-pager --full status mosquitto
 ```
 
-Verify that only the Montpellier AWTRIX receives EUR/USD, Gold and Brent, each twice and with a non-white color.
+Verify that only the Montpellier AWTRIX receives EUR/USD, Gold, Brent and NVIDIA, each twice and with a non-white color.
 
 Then enable the required services:
 

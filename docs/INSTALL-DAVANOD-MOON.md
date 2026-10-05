@@ -54,6 +54,7 @@ Confirm exactly these local retained apps:
 <davanod-awtrix-uid>/custom/market_eurusd
 <davanod-awtrix-uid>/custom/market_gold
 <davanod-awtrix-uid>/custom/market_brent
+<davanod-awtrix-uid>/custom/market_nvidia
 ```
 
 Then enable the required services:
