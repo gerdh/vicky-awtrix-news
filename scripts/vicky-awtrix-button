@@ -1,8 +1,8 @@
 #!/bin/bash
-set -u
+set -euo pipefail
 
-VICKY_DIR="${VICKY_DIR:-/home/gerd/vicky8}"
-AWTRIX_UID="${AWTRIX_UID:-awtrix_3e6014}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VICKY_DIR="${VICKY_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 LANGUAGE_STATE_TOPIC="${LANGUAGE_STATE_TOPIC:-vicky/state/language}"
 LANGUAGE_DISCOVERY_TOPIC="${LANGUAGE_DISCOVERY_TOPIC:-homeassistant/sensor/vicky_language/config}"
 PYTHON_BIN="${VICKY_PYTHON:-$VICKY_DIR/.venv/bin/python}"
@@ -18,6 +18,17 @@ MQTT_HOST="${MQTT_HOST:-$(read_config_value MQTT_HOST)}"
 MQTT_USER="${MQTT_USER:-$(read_config_value MQTT_USER)}"
 MQTT_PASS="${MQTT_PASS:-$(read_config_value MQTT_PASS)}"
 MQTT_HOST="${MQTT_HOST:-localhost}"
+CONFIG_AWTRIX_UID="$(read_config_value AWTRIX_UID)"
+CONFIG_BASE_TOPIC="$(read_config_value BASE_TOPIC)"
+if [ -z "$CONFIG_AWTRIX_UID" ] && [[ "$CONFIG_BASE_TOPIC" == */custom ]]; then
+    CONFIG_AWTRIX_UID="${CONFIG_BASE_TOPIC%/custom}"
+fi
+AWTRIX_UID="${AWTRIX_UID:-$CONFIG_AWTRIX_UID}"
+
+if [ -z "$AWTRIX_UID" ]; then
+    echo "ERROR: AWTRIX_UID is missing and could not be derived from BASE_TOPIC." >&2
+    exit 1
+fi
 
 MQTT_AUTH=()
 if [ -n "$MQTT_USER" ]; then
@@ -48,9 +59,15 @@ if cd "$VICKY_DIR" 2>/dev/null; then
     esac
 fi
 
+# Clear a notification left in AWTRIX memory by an older Vicky process. This
+# does not change native AWTRIX settings or the normal custom-app loop.
+/usr/bin/mosquitto_pub -h "$MQTT_HOST" "${MQTT_AUTH[@]}" \
+  -t "$AWTRIX_UID/notify/dismiss" -n || true
+
+echo "Vicky button listener: right=language, left=refresh, uid=$AWTRIX_UID"
+
 # The listener must stay connected. If authentication or the broker fails,
 # propagate a non-zero exit status so systemd records a real failure.
-set -o pipefail
 /usr/bin/mosquitto_sub \
   -h "$MQTT_HOST" \
   "${MQTT_AUTH[@]}" \
@@ -84,7 +101,7 @@ do
 
             /usr/bin/mosquitto_pub -h "$MQTT_HOST" "${MQTT_AUTH[@]}" \
               -t "$AWTRIX_UID/notify" \
-              -m "{\"text\":\"SPRACHE: $label\",\"duration\":3}"
+              -m "{\"text\":\"SPRACHE: $label\",\"duration\":3,\"stack\":false}"
 
             touch /tmp/vicky-news-force-refresh
             ;;

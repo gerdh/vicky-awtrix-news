@@ -138,6 +138,7 @@ def load_feeds():
                 "color": str(feed.get("color", "neutral")),
                 "language": str(feed.get("language", "")),
                 "priority": priority,
+                "code": str(feed.get("code", "")).strip(),
             }
         )
     return valid
@@ -314,6 +315,14 @@ def clear_news_topics():
     for index in range(1, 11):
         clear(f"vicky_news_{index}")
         clear(f"vicky_ai_news_{index}")
+    for legacy_topic in (
+        "awtrix_spiegel",
+        "awtrix_bbc",
+        "awtrix_lefigaro",
+        "awtrix_dollar",
+        "awtrix_display_soc",
+    ):
+        clear(legacy_topic)
     log("news topics cleared")
 def publish_news(messages, items):
     used = 0
@@ -513,8 +522,21 @@ def run_once():
             f"next bulletin in about "
             f"{remaining // 60} minutes"
         )
+
+
+def wait_for_refresh(timeout=POLL_SECONDS, interval=1.0):
+    """Wait for the next poll, but wake promptly for an AWTRIX button request."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if FORCE_REFRESH_FILE.exists():
+            return True
+        remaining = deadline - time.monotonic()
+        time.sleep(min(interval, max(0, remaining)))
+    return False
+
+
 def main():
-    log("VICKY Version 8.0 started")
+    log("VICKY Version 9.1.1 started")
     log(
         f"RSS poll every {POLL_SECONDS} seconds; "
         f"bulletin every "
@@ -525,6 +547,6 @@ def main():
             run_once()
         except Exception as error:
             log(f"ERROR: {error}")
-        time.sleep(POLL_SECONDS)
+        wait_for_refresh()
 if __name__ == "__main__":
     main()

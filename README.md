@@ -1,4 +1,4 @@
-# Vicky 9.1 – coordinated two-site AWTRIX stack
+# Vicky 9.1.1 – coordinated two-site AWTRIX stack
 
 Vicky 9 runs the same versioned information stack at two independent sites:
 
@@ -8,7 +8,7 @@ Vicky 9 runs the same versioned information stack at two independent sites:
 | Davanod | Moon | Raspberry Pi 5 | local MQTT and local AWTRIX |
 
 **Stable branch:** `main`  
-**Release:** `V9.1.0` / Vicky 9.1
+**Release:** `V9.1.1` / Vicky 9.1.1
 **Hugging Face Space:** https://huggingface.co/spaces/gerdh/vicky-awtrix-news
 
 The sites are not connected at runtime. Each has its own broker and AWTRIX UID. Both AWTRIX devices may use the same private IP address `192.168.1.86` because they are on separate LANs. GitHub coordinates code, tests, documentation and releases; it does not bridge MQTT traffic.
@@ -18,6 +18,7 @@ See [V9 architecture](docs/ARCHITECTURE-V9.md), [Montpellier/Orin installation](
 ## Functions
 
 - multilingual deterministic RSS news bulletins
+- German coverage from Spiegel, FAZ, Süddeutsche Zeitung and Abendzeitung München
 - local CTranslate2/OPUS-MT translation for French, German and English
 - persistent language state and AWTRIX button control
 - optional Home Assistant/Météo-France rain warning
@@ -101,6 +102,12 @@ Then enable the locally required services:
 sudo systemctl enable --now awtrix-news awtrix-markets awtrix-victron vicky-awtrix-button
 ```
 
+The button contract is deliberately unchanged: the right AWTRIX button cycles
+the Vicky news language `FR → DE → EN → FR`; the left button refreshes the
+news. Vicky 9.1.1 derives the local AWTRIX UID from `AWTRIX_UID` or, for an
+older local configuration, from `BASE_TOPIC`, and wakes the news service
+promptly instead of waiting for the next five-minute poll.
+
 ## Main components
 
 - `awtrix_news_vicki.py` – news service
@@ -123,4 +130,4 @@ PYTHONPATH=. .venv/bin/pytest -q
 
 The V9 contract tests protect the four market names, their explicit non-white colors and exactly two display repetitions.
 
-See [RELEASE-9.1.md](RELEASE-9.1.md) and [CHANGELOG.md](CHANGELOG.md) for release details.
+See [RELEASE-9.1.1.md](RELEASE-9.1.1.md) and [CHANGELOG.md](CHANGELOG.md) for release details.

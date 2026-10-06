@@ -1,4 +1,4 @@
-# Install Vicky 9 in Davanod on Moon
+# Install Vicky 9.1.1 in Davanod on Moon
 
 This installs the Davanod instance on Raspberry Pi 5 Moon. It uses the local Davanod MQTT broker and the Davanod AWTRIX UID.
 
@@ -61,6 +61,22 @@ Then enable the required services:
 
 ```bash
 sudo systemctl enable --now awtrix-news awtrix-markets awtrix-victron vicky-awtrix-button
+```
+
+Verify the button contract:
+
+- right button: cycle Vicky news language `FR → DE → EN → FR` and refresh immediately
+- left button: refresh Vicky news without changing language
+
+The button service reads `AWTRIX_UID` from the local `config.py`. For a local
+configuration created before Vicky 9.1, it safely derives the UID from
+`BASE_TOPIC`; no Montpellier value is copied to Davanod.
+
+Check the listener after installation:
+
+```bash
+systemctl --no-pager --full status vicky-awtrix-button
+journalctl -u vicky-awtrix-button -n 30 --no-pager
 ```
 
 ## 6. Check for duplicate publishers
