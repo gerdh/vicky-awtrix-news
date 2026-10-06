@@ -4,6 +4,20 @@ All notable changes to Vicky are documented here.
 
 ## Unreleased
 
+## [9.1.1] - 2026-10-06
+
+### Added
+- FAZ, Süddeutsche Zeitung and Abendzeitung München as additional German-language sources, without a language quota.
+- Contract tests for the requested source set, source-code preservation, button mapping and immediate refresh wake-up.
+
+### Fixed
+- Right AWTRIX button reliably keeps the `FR → DE → EN → FR` Vicky-news language cycle; left remains manual refresh.
+- Button listener now derives its repository path and local AWTRIX UID instead of falling back to `/home/gerd/vicky8` and a hard-coded UID.
+- News refresh wakes within about one second after a button request instead of waiting up to five minutes.
+- Configured source labels such as `SPG`, `FAZ`, `SZ` and `AZ` are preserved instead of being truncated from source names.
+- Obsolete Vicky news custom apps and a pending legacy notification are cleared without changing native AWTRIX settings.
+- `VERSION` now matches the published release.
+
 ## [9.1.0] - 2026-10-05
 
 ### Added

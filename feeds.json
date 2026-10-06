@@ -28,6 +28,33 @@
       "code": "SPG"
     },
     {
+      "name": "faz",
+      "url": "https://news.google.com/rss/search?q=site%3Afaz.net&hl=de&gl=DE&ceid=DE%3Ade",
+      "color": "neutral",
+      "language": "de",
+      "priority": 10,
+      "enabled": true,
+      "code": "FAZ"
+    },
+    {
+      "name": "sueddeutsche",
+      "url": "https://rss.sueddeutsche.de/rss/Topthemen",
+      "color": "neutral",
+      "language": "de",
+      "priority": 10,
+      "enabled": true,
+      "code": "SZ"
+    },
+    {
+      "name": "abendzeitung_muenchen",
+      "url": "https://news.google.com/rss/search?q=site%3Aabendzeitung-muenchen.de&hl=de&gl=DE&ceid=DE%3Ade",
+      "color": "neutral",
+      "language": "de",
+      "priority": 10,
+      "enabled": true,
+      "code": "AZ"
+    },
+    {
       "name": "bbc",
       "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
       "color": "bbc",
