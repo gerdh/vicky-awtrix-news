@@ -15,7 +15,7 @@ BASE_TOPIC = f"{AWTRIX_UID}/custom"
 MAX_DISPLAY_TEXT = 180
 DEFAULT_DURATION = 20
 
-# Victron connection remains local and is configured through environment values:
-# VICKY_CERBO_HOST=192.168.1.63
-# VICKY_CERBO_USER=root
-# VICKY_CERBO_SSH_KEY=/home/gerd/.ssh/id_ed25519
+# Victron connection remains local. Never commit the real values.
+VICKY_CERBO_HOST = "replace_with_local_cerbo_host"
+VICKY_CERBO_USER = "replace_with_local_cerbo_ssh_user"
+VICKY_CERBO_SSH_KEY = "/replace/with/local/private/key/path"

@@ -1,4 +1,4 @@
-# Vicky 9.1.2 – coordinated two-site AWTRIX stack
+# Vicky 9.1.3 – coordinated two-site AWTRIX stack
 
 Vicky 9 runs the same versioned information stack at two independent sites:
 
@@ -8,7 +8,7 @@ Vicky 9 runs the same versioned information stack at two independent sites:
 | Davanod | Moon | Raspberry Pi 5 | local MQTT and local AWTRIX |
 
 **Stable branch:** `main`  
-**Release:** `V9.1.2` / Vicky 9.1.2
+**Release:** `V9.1.3` / Vicky 9.1.3
 **Hugging Face Space:** https://huggingface.co/spaces/gerdh/vicky-awtrix-news
 
 The sites are not connected at runtime. Each has its own broker and AWTRIX UID. Both AWTRIX devices may use the same private IP address `192.168.1.86` because they are on separate LANs. GitHub coordinates code, tests, documentation and releases; it does not bridge MQTT traffic.
@@ -41,6 +41,11 @@ All portable code is shared. Only local configuration differs:
 - Home Assistant entity IDs
 
 Real credentials and `config.py` are ignored by Git and must never be committed. Do not copy one site's `config.py` to the other site.
+
+The site configurator requires the local Cerbo/GX host, SSH user and absolute
+private-key path. It stores them in ignored local `config.py` and `.vicky-site`
+files. The generated Victron systemd unit reads `.vicky-site`; the Victron
+client has no committed fallback address, user or key path.
 
 The local custom-app prefix is always:
 
@@ -137,4 +142,4 @@ PYTHONPATH=. .venv/bin/pytest -q
 
 The V9 contract tests protect the four market names, their explicit non-white colors and exactly two display repetitions.
 
-See [RELEASE-9.1.2.md](RELEASE-9.1.2.md) and [CHANGELOG.md](CHANGELOG.md) for release details.
+See [RELEASE-9.1.3.md](RELEASE-9.1.3.md) and [CHANGELOG.md](CHANGELOG.md) for release details.

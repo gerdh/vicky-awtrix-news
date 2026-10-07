@@ -4,6 +4,18 @@ All notable changes to Vicky are documented here.
 
 ## Unreleased
 
+## [9.1.3] - 2026-10-07
+
+### Changed
+- Site configuration now captures the local Cerbo/GX host, SSH user and absolute private-key path in ignored local files.
+- The generated Victron systemd unit reads its Cerbo/GX values from the local `.vicky-site` environment file.
+- Davanod/Moon and Montpellier/Orin installation guides now validate Cerbo SSH and D-Bus before enabling the Victron service.
+
+### Fixed
+- Removed committed Cerbo/GX host, user and private-key fallbacks from the Vicky 9 runtime and site profiles.
+- Victron startup now fails clearly when local SSH configuration or its private key is missing instead of connecting to a guessed address.
+- The Victron SSH subprocess no longer interpolates local connection values through a shell command.
+
 ## [9.1.2] - 2026-10-07
 
 ### Added
