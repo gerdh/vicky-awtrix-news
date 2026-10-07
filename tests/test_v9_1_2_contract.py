@@ -65,5 +65,6 @@ def test_local_ai_installer_uses_site_local_paths_and_loopback_only():
     assert "VICKY_AI_IMPORTANCE_SORT=1" in script
 
 
-def test_release_version_is_9_1_2():
-    assert (ROOT / "VERSION").read_text(encoding="utf-8").strip() == "9.1.2"
+def test_release_version_is_current():
+    assert (ROOT / "VERSION").read_text(encoding="utf-8").strip() == "9.1.3"
+    assert (ROOT / "RELEASE-9.1.3.md").is_file()
