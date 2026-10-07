@@ -14,13 +14,36 @@ RUN_USER="$(id -un)"
   echo "Missing config.py. Run: bash scripts/configure-site.sh montpellier|davanod"
   exit 1
 }
+[[ -f "$REPO_ROOT/.vicky-site" ]] || {
+  echo "Missing .vicky-site. Run: bash scripts/configure-site.sh montpellier|davanod"
+  exit 1
+}
 [[ -x "$PYTHON" ]] || {
   echo "Missing Python environment. Run: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
   exit 1
 }
 
+# shellcheck disable=SC1090
+set -a
+source "$REPO_ROOT/.vicky-site"
+set +a
+for name in VICKY_CERBO_HOST VICKY_CERBO_USER VICKY_CERBO_SSH_KEY; do
+  value="${!name:-}"
+  if [[ -z "$value" || "$value" == REPLACE_WITH_* ]]; then
+    echo "Missing local Cerbo/GX value: $name"
+    exit 1
+  fi
+done
+[[ -r "$VICKY_CERBO_SSH_KEY" ]] || {
+  echo "Cerbo/GX SSH key is not readable: $VICKY_CERBO_SSH_KEY"
+  exit 1
+}
+
 install_unit() {
-  local name="$1" command="$2" description="$3" temp
+  local name="$1" command="$2" description="$3" environment_file="${4:-}" temp environment_line=""
+  if [[ -n "$environment_file" ]]; then
+    environment_line="EnvironmentFile=$environment_file"
+  fi
   temp="$(mktemp)"
   cat >"$temp" <<EOF
 [Unit]
@@ -36,6 +59,7 @@ ExecStart=$command
 Restart=on-failure
 RestartSec=15
 Environment=PYTHONUNBUFFERED=1
+$environment_line
 
 [Install]
 WantedBy=multi-user.target
@@ -46,7 +70,7 @@ EOF
 
 install_unit awtrix-news.service "$PYTHON $REPO_ROOT/awtrix_news_vicki.py" "Vicky 9 AWTRIX News"
 install_unit awtrix-markets.service "$PYTHON $REPO_ROOT/markets/awtrix_markets.py" "Vicky 9 AWTRIX Markets"
-install_unit awtrix-victron.service "$PYTHON $REPO_ROOT/victron/awtrix_victron.py" "Vicky 9 AWTRIX Victron"
+install_unit awtrix-victron.service "$PYTHON $REPO_ROOT/victron/awtrix_victron.py" "Vicky 9 AWTRIX Victron" "$REPO_ROOT/.vicky-site"
 install_unit vicky-awtrix-button.service "$REPO_ROOT/scripts/vicky-awtrix-button" "Vicky 9 AWTRIX Button Listener"
 
 sudo systemctl daemon-reload
