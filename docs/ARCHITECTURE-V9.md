@@ -16,11 +16,23 @@ GitHub coordinates source code, tests, documentation and releases. It does not b
 - One local publisher per AWTRIX topic and site.
 - `BASE_TOPIC=<local AWTRIX UID>/custom`.
 - Local MQTT credentials and real AWTRIX UIDs are never committed.
+- Cerbo/GX host, SSH user and private-key path are configured independently at
+  each site and are never copied from the other site or committed.
 - Market tiles are EUR/USD, Gold, Brent and NVIDIA.
 - Every market tile sets `repeat: 2`.
 - Market colors are explicit: EUR/USD `00FFFF`, Gold `FFD700`, Brent `FF8C00`, NVIDIA `76B900`.
 - Neither site relies on the legacy Home Assistant endpoint `http://192.168.1.86/api/notify` for normal Vicky custom apps.
 - Site and hardware differences live in local configuration, not separate drifting source branches.
+
+## Cerbo/GX SSH data flow
+
+The committed `sites/*.conf.example` files contain site-labelled placeholders,
+not working Cerbo/GX values. `scripts/configure-site.sh` validates the local
+values and writes them to ignored `config.py` and `.vicky-site` files with mode
+`0600`. `scripts/install-vicky9-services.sh` attaches `.vicky-site` to the
+generated `awtrix-victron.service` through `EnvironmentFile=`. The Victron
+client fails at startup if any value or the private key is missing; it never
+guesses another site's address, user or key path.
 
 ## Duplicate-message rule
 

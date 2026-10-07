@@ -1,4 +1,4 @@
-# Install Vicky 9.1.2 in Davanod on Moon
+# Install Vicky 9.1.3 in Davanod on Moon
 
 This installs the Davanod instance on Raspberry Pi 5 Moon. It uses the local Davanod MQTT broker and the Davanod AWTRIX UID.
 
@@ -29,16 +29,47 @@ python3 -m venv .venv
 
 ## 3. Configure Davanod
 
+Before configuration, prepare a private SSH key that Moon can use to reach the
+local Davanod Cerbo/GX. Keep its absolute path local; do not add it or the
+Cerbo address to GitHub. If the key has not yet been authorized on the Cerbo,
+install its public half with the actual local values:
+
+```bash
+DAVANOD_CERBO_KEY=/absolute/local/path/to/private_key
+DAVANOD_CERBO_USER=enter_local_user
+DAVANOD_CERBO_HOST=enter_local_host
+ssh-copy-id -i "$DAVANOD_CERBO_KEY.pub" \
+  "$DAVANOD_CERBO_USER@$DAVANOD_CERBO_HOST"
+```
+
 ```bash
 bash scripts/configure-site.sh davanod
 ```
 
 Enter the UID printed by the Davanod AWTRIX configuration page. Do not reuse the Montpellier UID. The AWTRIX address may also be `192.168.1.86` because the Davanod LAN is separate.
 
+The configurator also asks for the local Davanod Cerbo/GX host, SSH user and
+absolute private-key path. It writes them only to the ignored local files
+`config.py` and `.vicky-site`.
+
+Validate the exact generated SSH path before installing services:
+
+```bash
+set -a
+source ./.vicky-site
+set +a
+test -r "$VICKY_CERBO_SSH_KEY"
+ssh -o BatchMode=yes -o ConnectTimeout=10 \
+  -i "$VICKY_CERBO_SSH_KEY" \
+  "$VICKY_CERBO_USER@$VICKY_CERBO_HOST" \
+  'dbus -y com.victronenergy.system /Dc/Battery/Soc GetValue'
+```
+
 ## 4. Install services
 
 ```bash
 bash scripts/install-vicky9-services.sh
+systemctl cat awtrix-victron.service
 ```
 
 ## 5. Test before enabling
@@ -46,6 +77,9 @@ bash scripts/install-vicky9-services.sh
 ```bash
 .venv/bin/python markets/awtrix_markets.py --once
 systemctl --no-pager --full status mosquitto
+sudo systemctl start awtrix-victron.service
+systemctl --no-pager --full status awtrix-victron.service
+journalctl -u awtrix-victron.service -n 50 --no-pager
 ```
 
 Confirm exactly these local retained apps:
