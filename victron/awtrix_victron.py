@@ -14,15 +14,27 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+import config
+
 from config import BASE_TOPIC, MQTT_HOST, MQTT_PASS, MQTT_USER
 
-CERBO_HOST = os.environ.get("VICKY_CERBO_HOST", "192.168.1.63")
-CERBO_USER = os.environ.get("VICKY_CERBO_USER", "root")
-SSH_KEY = os.environ.get("VICKY_CERBO_SSH_KEY", "/home/gerd/.ssh/id_ed25519")
+
+def required_setting(name):
+    value = os.environ.get(name, getattr(config, name, "")).strip()
+    if (
+        not value
+        or value.upper().startswith("REPLACE_WITH_")
+        or value.lower().startswith("replace_with_")
+    ):
+        raise RuntimeError(f"{name} is not configured for this site")
+    return value
 
 
-def run(cmd, timeout=15):
-    return subprocess.check_output(cmd, shell=True, text=True, timeout=timeout).strip()
+CERBO_HOST = required_setting("VICKY_CERBO_HOST")
+CERBO_USER = required_setting("VICKY_CERBO_USER")
+SSH_KEY = Path(required_setting("VICKY_CERBO_SSH_KEY")).expanduser()
+if not SSH_KEY.is_file():
+    raise RuntimeError(f"Cerbo/GX SSH key not found: {SSH_KEY}")
 
 
 def number(text, default=0.0):
@@ -31,10 +43,7 @@ def number(text, default=0.0):
 
 
 def get_victron():
-    out = run(
-        f"""ssh -o ConnectTimeout=10 -o ConnectionAttempts=3 \
--o ServerAliveInterval=5 -o ServerAliveCountMax=2 -o BatchMode=yes \
--i {SSH_KEY} -l {CERBO_USER} {CERBO_HOST} '
+    remote_script = r"""
 SOLAR=$(dbus -y | grep -m1 com.victronenergy.solarcharger)
 echo GRID=$(dbus -y com.victronenergy.system /Ac/Grid/L1/Power GetValue)
 echo HOUSE=$(dbus -y com.victronenergy.system /Ac/Consumption/L1/Power GetValue)
@@ -44,8 +53,24 @@ if [ -n "$SOLAR" ]; then
 else
   echo SMARTSOLAR=0
 fi
-'"""
-    )
+"""
+    out = subprocess.check_output(
+        [
+            "ssh",
+            "-o", "ConnectTimeout=10",
+            "-o", "ConnectionAttempts=3",
+            "-o", "ServerAliveInterval=5",
+            "-o", "ServerAliveCountMax=2",
+            "-o", "BatchMode=yes",
+            "-i", str(SSH_KEY),
+            "-l", CERBO_USER,
+            CERBO_HOST,
+            "sh", "-s",
+        ],
+        input=remote_script,
+        text=True,
+        timeout=15,
+    ).strip()
 
     values = {}
     for line in out.splitlines():
