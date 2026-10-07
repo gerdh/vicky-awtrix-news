@@ -395,8 +395,34 @@ def prepare_candidates(pool):
         reverse=True,
     )
     return ranked[:30]
+
+
+def diversify_by_source(items, maximum):
+    """Prefer one item per source, then fill remaining slots in input order."""
+    selected = []
+    deferred = []
+    seen_sources = set()
+
+    for item in items:
+        source = str(item.get("source", "")).strip()
+        if source and source not in seen_sources:
+            selected.append(item)
+            seen_sources.add(source)
+            if len(selected) >= maximum:
+                return selected
+        else:
+            deferred.append(item)
+
+    for item in deferred:
+        selected.append(item)
+        if len(selected) >= maximum:
+            break
+
+    return selected
+
+
 def prepare_button_candidates(pool):
-    """Return the five newest unique headlines, including previously shown ones."""
+    """Return five recent headlines with source diversity before backfill."""
     newest_first = sorted(
         pool,
         key=lambda item: str(item.get("first_seen", "")),
@@ -411,13 +437,11 @@ def prepare_button_candidates(pool):
             continue
         seen.add(key)
         result.append(item)
-        if len(result) >= 5:
-            break
-    return result
+    return diversify_by_source(result, maximum=5)
 def create_button_bulletin(pool):
     """Publish five separate, safely translated headlines."""
     candidates = prepare_button_candidates(pool)
-    log("---- VICKY V8.0 BUTTON BULLETIN ----")
+    log("---- VICKY 9.1.2 BUTTON BULLETIN ----")
     log(f"button candidates: {len(candidates)}")
     if not candidates:
         log("no headlines available for button refresh")
@@ -448,20 +472,8 @@ def create_button_bulletin(pool):
 def create_bulletin(pool):
     """Publish safely translated headlines without generative rewriting."""
     candidates = prepare_candidates(pool)
-    diversified = []
-    seen_sources = set()
-    for item in candidates:
-        source = item.get("source", "")
-        if source not in seen_sources:
-            diversified.append(item)
-            seen_sources.add(source)
-    for item in candidates:
-        if len(diversified) >= MAX_MESSAGES:
-            break
-        if item not in diversified:
-            diversified.append(item)
-    candidates = diversified
-    log("---- VICKY VERSION 8.0 BULLETIN ----")
+    candidates = diversify_by_source(candidates, maximum=MAX_MESSAGES)
+    log("---- VICKY 9.1.2 BULLETIN ----")
     log(f"candidates: {len(candidates)}")
     if not candidates:
         log("no unpublished headlines")
@@ -536,7 +548,7 @@ def wait_for_refresh(timeout=POLL_SECONDS, interval=1.0):
 
 
 def main():
-    log("VICKY Version 9.1.1 started")
+    log("VICKY Version 9.1.2 started")
     log(
         f"RSS poll every {POLL_SECONDS} seconds; "
         f"bulletin every "

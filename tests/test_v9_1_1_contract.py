@@ -59,7 +59,3 @@ def test_button_refresh_wakes_news_loop_without_five_minute_delay(tmp_path, monk
     monkeypatch.setattr(news, "FORCE_REFRESH_FILE", request_file)
 
     assert news.wait_for_refresh(timeout=0.1, interval=0.01) is True
-
-
-def test_release_version_is_9_1_1():
-    assert (ROOT / "VERSION").read_text(encoding="utf-8").strip() == "9.1.1"

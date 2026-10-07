@@ -23,7 +23,7 @@ DEFAULT_URL = "http://127.0.0.1:8080/v1/chat/completions"
 
 
 def _enabled() -> bool:
-    value = os.environ.get("VICKY_AI_IMPORTANCE_SORT", "1").strip().lower()
+    value = os.environ.get("VICKY_AI_IMPORTANCE_SORT", "0").strip().lower()
     return value not in {"0", "false", "no", "off", "disabled"}
 
 

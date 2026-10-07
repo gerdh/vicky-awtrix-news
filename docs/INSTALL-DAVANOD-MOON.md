@@ -1,4 +1,4 @@
-# Install Vicky 9.1.1 in Davanod on Moon
+# Install Vicky 9.1.2 in Davanod on Moon
 
 This installs the Davanod instance on Raspberry Pi 5 Moon. It uses the local Davanod MQTT broker and the Davanod AWTRIX UID.
 
@@ -79,7 +79,26 @@ systemctl --no-pager --full status vicky-awtrix-button
 journalctl -u vicky-awtrix-button -n 30 --no-pager
 ```
 
-## 6. Check for duplicate publishers
+Button-triggered bulletins prefer distinct sources before using a second item
+from any source. This does not impose a German/French/English quota.
+
+## 6. Optional local importance sorting
+
+Moon can run a local OpenAI-compatible model that may only reorder finished
+messages. It never supplies display text. The feature is opt-in and the server
+must bind to loopback, not the LAN.
+
+After installing a local `llama-server` binary and GGUF model, follow
+[the local AI sorter guide](LOCAL-AI-SORTER.md). The tested Moon helper command
+is:
+
+```bash
+bash scripts/install-local-ai-sorter-service.sh
+```
+
+Do not reuse Montpellier model paths or service configuration.
+
+## 7. Check for duplicate publishers
 
 ```bash
 pgrep -af 'awtrix_markets.py|awtrix_news_vicki.py|awtrix_victron.py'

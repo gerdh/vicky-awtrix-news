@@ -1,6 +1,12 @@
 import ai_importance_sorter as sorter
 
 
+def test_ai_sort_is_opt_in(monkeypatch):
+    monkeypatch.delenv("VICKY_AI_IMPORTANCE_SORT", raising=False)
+
+    assert sorter._enabled() is False
+
+
 def test_ai_sort_reorders_only(monkeypatch):
     messages = [
         {"text": "First", "headlines": ["Original first"]},

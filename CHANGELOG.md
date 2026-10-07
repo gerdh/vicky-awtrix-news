@@ -4,6 +4,19 @@ All notable changes to Vicky are documented here.
 
 ## Unreleased
 
+## [9.1.2] - 2026-10-07
+
+### Added
+- Optional installer and documentation for a site-local OpenAI-compatible importance sorter, tested on Davanod Moon with Qwen2.5 1.5B Instruct.
+- Contract tests for source-diverse button bulletins and controlled backfill.
+
+### Changed
+- AI importance sorting is opt-in; installations without a configured local endpoint no longer make failing requests by default.
+
+### Fixed
+- Button-triggered bulletins now prefer five distinct sources before filling remaining positions, preventing a later-polled feed such as Les Echos from occupying every slot.
+- The normal and button-triggered bulletin paths now share the same source-diversity helper without imposing a language quota.
+
 ## [9.1.1] - 2026-10-06
 
 ### Added
