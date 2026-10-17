@@ -10,6 +10,7 @@ import json
 import logging
 import time
 import sys
+import threading
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import paho.mqtt.client as mqtt
@@ -102,6 +103,7 @@ def main():
         return
     if not args.pilot:
         parser.error("Use --check first; --pilot requires deliberate opt-in")
+    parser.error("Pilot not yet safe to run: stored MQTT market apps must be backed up, restored and cleared safely first. No changes made.")
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,
