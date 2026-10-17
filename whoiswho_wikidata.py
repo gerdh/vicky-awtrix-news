@@ -96,6 +96,10 @@ def lookup_person(name, language="de", headline=None):
     if language not in ("de", "fr", "en"):
         language = "de"
     context = " ".join((headline or "").split())[:350]
+    # A headline consisting only of the name provides no disambiguating context.
+    # Reject before consulting cached results so old AI guesses cannot bypass this.
+    if context and context.casefold().strip(" .,;:!?") == name.casefold():
+        return None
     cache_key = language + ":" + name.casefold()
     if context:
         cache_key += ":" + hashlib.sha256(context.encode("utf-8")).hexdigest()[:20]
