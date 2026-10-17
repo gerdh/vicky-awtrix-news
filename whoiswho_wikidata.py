@@ -91,7 +91,7 @@ def choose_with_context(name, headline, candidates):
 def lookup_person(name, language="de", headline=None):
     """Resolve a full name; with context ask local AI only for ambiguous humans."""
     name = " ".join(name.split())
-    if not (3 <= len(name) <= 90) or not re.fullmatch(r"[^\\d<>]+", name):
+    if not (3 <= len(name) <= 90) or not re.fullmatch(r"[^\d<>]+", name):
         return None
     if language not in ("de", "fr", "en"):
         language = "de"
