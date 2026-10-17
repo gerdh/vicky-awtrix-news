@@ -379,18 +379,45 @@ def mark_published(pool, messages):
             item["published"] = True
             item["published_at"] = now
     save_json(POOL_FILE, pool)
+# Allow previously shown headlines to fill sparse bulletins, but never
+# replay a headline immediately or resurrect old stories from the full pool.
+REUSE_AFTER_MINUTES = 30
+REUSE_WITHIN_HOURS = 12
+
 def prepare_candidates(pool):
-    candidates = [
-        item
-        for item in pool
-        if not item.get("published", False)
-    ]
-    if not candidates:
+    now = datetime.now()
+    cutoff = now - timedelta(hours=REUSE_WITHIN_HOURS)
+    reuse_cutoff = now - timedelta(minutes=REUSE_AFTER_MINUTES)
+    eligible = []
+    for item in pool:
+        if not isinstance(item, dict) or not item.get("title"):
+            continue
+        try:
+            first_seen = datetime.fromisoformat(item["first_seen"])
+            if first_seen < cutoff:
+                continue
+        except (KeyError, TypeError, ValueError):
+            continue
+        if item.get("published", False):
+            try:
+                published_at = datetime.fromisoformat(item["published_at"])
+                if published_at > reuse_cutoff:
+                    continue
+            except (KeyError, TypeError, ValueError):
+                # Historical entries with no reliable publication time are
+                # excluded from automatic reuse.
+                continue
+        eligible.append(item)
+
+    if not eligible:
         return []
-    ranked = prioritize_items(candidates)
+    ranked = prioritize_items(eligible)
+    # Unpublished headlines come first; reuse fills any free slots.
     ranked.sort(
-        key=lambda item: int(
-            item.get("priority", 5)
+        key=lambda item: (
+            not item.get("published", False),
+            int(item.get("priority", 5)),
+            str(item.get("first_seen", "")),
         ),
         reverse=True,
     )
