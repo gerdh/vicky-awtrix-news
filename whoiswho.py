@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Opt-in AWTRIX Who-is-Who: select button explains verified names on current Vicky page.
 
-Conservative implementation: only names in a locally curated glossary are supported.
-No speculative identity resolution and no remote API needed in the button handler.
+Dynamic Qwen name extraction + Wikidata identification. Each press cycles to the next person.
 """
 import json
 import logging
@@ -10,6 +9,8 @@ import os
 import re
 import time
 from pathlib import Path
+from whoiswho_extract import extract_person_names
+from whoiswho_wikidata import lookup_person
 import paho.mqtt.client as mqtt
 
 ROOT = Path(__file__).resolve().parent
@@ -27,14 +28,9 @@ ACTIVE_SECONDS = 20
 headlines = {}
 current_app = None
 current_app_time = 0
-
-def glossary():
-    try:
-        data = json.loads(GLOSSARY.read_text(encoding="utf-8"))
-        return [row for row in data if isinstance(row, dict) and row.get("name") and row.get("explanations")]
-    except (OSError, ValueError) as exc:
-        LOG.warning("Glossary unavailable: %s", exc)
-        return []
+cycle_app = None
+cycle_text = None
+cycle_index = 0
 
 def language():
     try:
@@ -44,19 +40,21 @@ def language():
     except Exception:
         return "de"
 
-def find_verified_name(text):
-    for entry in sorted(glossary(), key=lambda x: len(x["name"]), reverse=True):
-        name = entry["name"]
-        if re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", text, re.IGNORECASE):
-            if entry.get("verified") is True:
-                return entry
-    return None
+def verified_people(text, lang):
+    """Resolve only Qwen-extracted names that Wikidata verifies as humans."""
+    result = []
+    for name in extract_person_names(text):
+        item = lookup_person(name, lang, headline=text)
+        if item and item.get("verified_human") and item.get("description"):
+            if item["id"] not in {x["id"] for x in result}:
+                result.append(item)
+    return result
 
 def accept_app(app):
     return bool(re.fullmatch(r"vicky_news_[ab]_[1-5]", app or ""))
 
 def handle(client, userdata, msg):
-    global current_app, current_app_time
+    global current_app, current_app_time, cycle_app, cycle_text, cycle_index
     suffix = msg.topic[len(PREFIX)+1:]
     try:
         payload = msg.payload.decode("utf-8")
@@ -68,6 +66,8 @@ def handle(client, userdata, msg):
         except (ValueError, AttributeError):
             return
         if isinstance(app, str):
+            if app != current_app:
+                cycle_app, cycle_text, cycle_index = None, None, 0
             current_app, current_app_time = app, time.monotonic()
     elif suffix.startswith("custom/"):
         app = suffix[len("custom/"):]
@@ -78,6 +78,8 @@ def handle(client, userdata, msg):
             value = obj.get("text", "") if isinstance(obj, dict) else ""
             if isinstance(value, list):
                 value = "".join(str(part.get("t","")) for part in value if isinstance(part, dict))
+            if app == current_app and headlines.get(app, ("",))[0] != str(value):
+                cycle_app, cycle_text, cycle_index = None, None, 0
             headlines[app] = (str(value), time.monotonic())
         except ValueError:
             return
@@ -92,18 +94,27 @@ def handle(client, userdata, msg):
         if not item or now-item[1] > CACHE_SECONDS:
             LOG.info("Select ignored: no recent headline for %s", current_app)
             return
-        entity = find_verified_name(item[0])
-        if not entity:
-            LOG.info("Select: no verified glossary match for %s", current_app)
-            return
+        text = item[0]
         lang = language()
-        explanation = entity["explanations"].get(lang) or entity["explanations"].get("de")
-        if not explanation:
+        try:
+            people = verified_people(text, lang)
+        except Exception as error:
+            LOG.warning("Who-is-Who lookup failed: %s", error)
             return
-        message = {"text": entity["name"] + ": " + explanation, "duration": 15,
-                   "color": "#FF4444", "textCase": 2, "stack": False}
+        if not people:
+            LOG.info("Select: no verified person for %s", current_app)
+            return
+        if cycle_app != current_app or cycle_text != text:
+            cycle_app, cycle_text, cycle_index = current_app, text, 0
+        person = people[cycle_index % len(people)]
+        cycle_index = (cycle_index + 1) % len(people)
+        message = {"text": person["name"] + ": " + person["description"],
+                   "duration": 15, "color": "#FF4444",
+                   "textCase": 2, "stack": False}
         client.publish(PREFIX+"/notify", json.dumps(message, ensure_ascii=False), qos=0)
-        LOG.info("Explained verified entry %s on %s", entity["name"], current_app)
+        LOG.info("Who-is-Who %s (%s) %s/%s on %s",
+                 person["name"], person["id"], cycle_index or len(people),
+                 len(people), current_app)
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
