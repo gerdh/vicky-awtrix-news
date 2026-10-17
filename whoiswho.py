@@ -66,8 +66,6 @@ def handle(client, userdata, msg):
         except (ValueError, AttributeError):
             return
         if isinstance(app, str):
-            if app != current_app:
-                cycle_app, cycle_text, cycle_index = None, None, 0
             current_app, current_app_time = app, time.monotonic()
     elif suffix.startswith("custom/"):
         app = suffix[len("custom/"):]
@@ -78,7 +76,7 @@ def handle(client, userdata, msg):
             value = obj.get("text", "") if isinstance(obj, dict) else ""
             if isinstance(value, list):
                 value = "".join(str(part.get("t","")) for part in value if isinstance(part, dict))
-            if app == current_app and headlines.get(app, ("",))[0] != str(value):
+            if cycle_app == app and headlines.get(app, ("",))[0] != str(value):
                 cycle_app, cycle_text, cycle_index = None, None, 0
             headlines[app] = (str(value), time.monotonic())
         except ValueError:
