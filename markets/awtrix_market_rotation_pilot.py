@@ -9,6 +9,9 @@ import argparse
 import json
 import logging
 import time
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import paho.mqtt.client as mqtt
 import config
 from markets.awtrix_markets import MARKETS, enabled_markets, fetch_json
