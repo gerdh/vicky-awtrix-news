@@ -8,6 +8,7 @@ import argparse
 import json
 import logging
 import signal
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -57,6 +58,9 @@ def main():
         return
     if not args.run or args.minutes < 4 or args.minutes > 30:
         parser.error("Use --run --minutes 8 (allowed 4..30) for explicit trial")
+    active = subprocess.run(["systemctl", "is-active", "--quiet", "awtrix-markets.service"], check=False)
+    if active.returncode == 0:
+        parser.error("awtrix-markets.service is active. Stop it before --run.")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,
                          client_id="vicky-market-trial")
