@@ -117,8 +117,7 @@ def main():
             return
         client.subscribe([(PREFIX+"/stats", 0),
                           (PREFIX+"/stats/buttonSelect", 0),
-                          (PREFIX+"/custom/vicky_news_a_+", 0),
-                          (PREFIX+"/custom/vicky_news_b_+", 0)])
+                          (PREFIX+"/custom/+", 0)])
     client.on_connect = connected
     client.connect(BROKER, int(getattr(config, "MQTT_PORT", 1883)), 60)
     client.loop_forever()
