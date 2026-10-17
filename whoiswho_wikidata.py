@@ -5,6 +5,7 @@ Only accepts an exact name and a single matching human entity; never guesses
 identities from isolated surnames or news text. Independent of the live service.
 """
 import json
+import hashlib
 import os
 import re
 import sys
@@ -54,15 +55,52 @@ def exact_label(entity, name):
     values += [v.get("value", "") for group in aliases.values() for v in group]
     return any(v.casefold() == name.casefold() for v in values)
 
-def lookup_person(name, language="de"):
+def choose_with_context(name, headline, candidates):
+    """AI advisory decision only; reject anything outside verified candidate IDs."""
+    if not headline or name.casefold() not in headline.casefold():
+        return None
+    endpoint = os.environ.get(
+        "VICKY_WHOISWHO_AI_URL", "http://127.0.0.1:8079/v1/chat/completions")
+    if not endpoint.startswith("http://127.0.0.1:") and not endpoint.startswith("http://localhost:"):
+        return None
+    rows = []
+    for item in candidates:
+        rows.append(item["id"] + " | " + item["description"])
+    prompt = (
+        "Identify the named person in this news headline using context. "
+        "Candidate descriptions are from Wikidata. "
+        "Return ONLY the matching Q-ID or NONE. If the headline cannot "
+        "distinguish candidates, return NONE. Never invent an ID.\n"
+        "Name: " + name + "\nHeadline: " + headline + "\nCandidates:\n" +
+        "\n".join(rows))
+    payload = {"model": os.environ.get("VICKY_WHOISWHO_AI_MODEL", "local-model"),
+               "temperature": 0, "max_tokens": 32,
+               "messages": [{"role": "system", "content": "Reply with exactly one candidate Q-ID or NONE."},
+                            {"role": "user", "content": prompt}]}
+    req = Request(endpoint, data=json.dumps(payload).encode("utf-8"),
+                  headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urlopen(req, timeout=30) as response:
+            output = json.load(response)["choices"][0]["message"]["content"].strip()
+    except (OSError, ValueError, KeyError, IndexError, TypeError):
+        return None
+    ids = {row["id"] for row in candidates}
+    return output if output in ids else None
+
+
+def lookup_person(name, language="de", headline=None):
+    """Resolve a full name; with context ask local AI only for ambiguous humans."""
     name = " ".join(name.split())
-    if not (3 <= len(name) <= 90) or not re.fullmatch(r"[^\d<>]+", name):
+    if not (3 <= len(name) <= 90) or not re.fullmatch(r"[^\\d<>]+", name):
         return None
     if language not in ("de", "fr", "en"):
         language = "de"
-    key = language + ":" + name.casefold()
+    context = " ".join((headline or "").split())[:350]
+    cache_key = language + ":" + name.casefold()
+    if context:
+        cache_key += ":" + hashlib.sha256(context.encode("utf-8")).hexdigest()[:20]
     data = get_cache()
-    entry = data.get(key)
+    entry = data.get(cache_key)
     if entry and time.time() - entry.get("ts", 0) < TTL:
         return entry.get("value")
     params = urlencode({"action": "wbsearchentities", "search": name,
@@ -70,27 +108,37 @@ def lookup_person(name, language="de"):
     results = request_json(API + "?" + params).get("search", [])
     exact = [x for x in results if x.get("label", "").casefold() == name.casefold()]
     accepted = []
+    seen = set()
     for item in exact:
         qid = item.get("id", "")
-        if not re.fullmatch(r"Q[1-9][0-9]*", qid):
+        if not re.fullmatch(r"Q[1-9][0-9]*", qid) or qid in seen:
             continue
+        seen.add(qid)
         obj = request_json(ENTITY_API.format(qid)).get("entities", {}).get(qid, {})
         if human(obj) and exact_label(obj, name):
-            accepted.append((qid, obj))
-    # If names collide, refuse an automatic identification.
-    answer = None
+            desc = obj.get("descriptions", {}).get(language, obj.get("descriptions", {}).get("en", {})).get("value", "")
+            accepted.append({"id": qid, "entity": obj, "description": desc})
+    chosen = None
     if len(accepted) == 1:
-        qid, obj = accepted[0]
+        chosen = accepted[0]
+    elif len(accepted) > 1 and context:
+        selected_id = choose_with_context(name, context, accepted)
+        chosen = next((c for c in accepted if c["id"] == selected_id), None)
+    answer = None
+    if chosen:
+        qid, obj = chosen["id"], chosen["entity"]
         labels = obj.get("labels", {})
-        descriptions = obj.get("descriptions", {})
-        answer = {"id": qid, "name": labels.get(language, labels.get("en", {})).get("value", name),
-                  "description": descriptions.get(language, descriptions.get("en", {})).get("value", ""),
-                  "url": "https://www.wikidata.org/wiki/" + qid,
-                  "verified_human": True}
-        if not answer["description"]:
-            answer = None
-    data[key] = {"ts": time.time(), "value": answer}
-    save_cache(data)
+        description = chosen["description"]
+        if description:
+            answer = {"id": qid,
+                      "name": labels.get(language, labels.get("en", {})).get("value", name),
+                      "description": description,
+                      "url": "https://www.wikidata.org/wiki/" + qid,
+                      "verified_human": True}
+    # Only cache positive choices: NONE can change as descriptions or context improve.
+    if answer:
+        data[cache_key] = {"ts": time.time(), "value": answer}
+        save_cache(data)
     return answer
 
 if __name__ == "__main__":
