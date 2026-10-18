@@ -92,6 +92,7 @@ def main():
         pending = set()
         seen = set()
         previous = None
+        batch_started = 0
         last_fetch = 0
         prices = {}
         while time.monotonic() < deadline:
@@ -119,6 +120,17 @@ def main():
                 log.info("Completed: %s", previous)
             if app:
                 previous = app
+            # A short market tile may be absent from periodic stats entirely.
+            # After a generous grace period, retire only tiles NOT currently
+            # reported as visible. This prevents a stalled pending set.
+            if pending and batch_started and now - batch_started >= INTERVAL:
+                for topic in list(pending):
+                    if app is None or app == topic:
+                        continue
+                    publish(client, topic, b"", False)
+                    pending.remove(topic)
+                    seen.discard(topic)
+                    log.info("Expired unsampled market %s after grace period", topic)
             if not pending and now >= next_batch:
                 for name in NAMES:
                     spec = MARKETS[name]
@@ -129,6 +141,7 @@ def main():
                         publish(client, topic, payload, False)
                         pending.add(topic)
                         log.info("Queued %s", topic)
+                batch_started = now
                 next_batch = now + INTERVAL
             time.sleep(0.5)
         log.info("Rotation finished; restoring previous market tiles")
