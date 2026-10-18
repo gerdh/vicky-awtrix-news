@@ -31,7 +31,7 @@ def wikipedia_intro(qid, language="de"):
         extract = next((v.get("extract", "") for v in pages.values() if v.get("extract")), "")
         extract = " ".join(extract.split())
         # Do not split at date ordinals such as "6. Mai" or "11. November".
-        sentences = re.split(r"(?<!\\d)(?<=[.!?])\\s+(?=[A-ZÀ-ÝÄÖÜ])", extract)
+        sentences = re.split(r"(?<!\d)(?<=[.!?])\s+(?=[A-ZÀ-ÝÄÖÜ])", extract)
         summary = " ".join(sentences[:3]).strip()
         if len(summary) > 480:
             prefix = summary[:480].rsplit(" ", 1)[0].rstrip(" ,;:")
