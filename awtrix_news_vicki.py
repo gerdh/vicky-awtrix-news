@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import hashlib
 import json
+import os
 import re
 import threading
 import time
@@ -340,9 +341,18 @@ def publish_news(messages, items):
         color = color_for_message(message, items)
         source_code = source_code_for_message(message, items)
         display_text = f"{source_code}: {text}"
+        payload_text = display_text
+        if os.environ.get("VICKY_WHOISWHO_RED_NAMES") == "1":
+            try:
+                from whoiswho_colors import fragments
+                # Resolve the full displayed text, so highlighted words match
+                # the same headline that the button handler receives.
+                payload_text = fragments(display_text, color, load_output_language())
+            except Exception as exc:
+                log(f"Who-is-Who color fallback: {exc}")
         publish(
             topic,
-            display_text,
+            payload_text,
             color=color,
             repeat=2,
         )
