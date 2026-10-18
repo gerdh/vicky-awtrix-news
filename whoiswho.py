@@ -8,9 +8,11 @@ import logging
 import os
 import re
 import time
+import threading
 from pathlib import Path
 from whoiswho_extract import extract_person_names
 from whoiswho_wikidata import lookup_person
+from whoiswho_wikipedia import wikipedia_intro
 import paho.mqtt.client as mqtt
 
 ROOT = Path(__file__).resolve().parent
@@ -31,6 +33,7 @@ current_app_time = 0
 cycle_app = None
 cycle_text = None
 cycle_index = 0
+busy = threading.Lock()
 
 def language():
     try:
@@ -94,25 +97,42 @@ def handle(client, userdata, msg):
             return
         text = item[0]
         lang = language()
-        try:
-            people = verified_people(text, lang)
-        except Exception as error:
-            LOG.warning("Who-is-Who lookup failed: %s", error)
+        # Network/API requests must never block paho's MQTT callback: otherwise
+        # stats and subsequent button events would become stale while Qwen runs.
+        if not busy.acquire(blocking=False):
+            LOG.info("Select ignored: previous lookup still running")
             return
-        if not people:
-            LOG.info("Select: no verified person for %s", current_app)
-            return
-        if cycle_app != current_app or cycle_text != text:
-            cycle_app, cycle_text, cycle_index = current_app, text, 0
-        person = people[cycle_index % len(people)]
-        cycle_index = (cycle_index + 1) % len(people)
-        message = {"text": person["name"] + ": " + person["description"],
-                   "duration": 15, "color": "#FF4444",
-                   "textCase": 2, "stack": False}
-        client.publish(PREFIX+"/notify", json.dumps(message, ensure_ascii=False), qos=0)
-        LOG.info("Who-is-Who %s (%s) %s/%s on %s",
-                 person["name"], person["id"], cycle_index or len(people),
-                 len(people), current_app)
+        app_snapshot = current_app
+        def explain():
+            global cycle_app, cycle_text, cycle_index
+            try:
+                people = verified_people(text, lang)
+                if not people:
+                    LOG.info("Select: no verified person in %s", app_snapshot)
+                    return
+                if cycle_app != app_snapshot or cycle_text != text:
+                    cycle_app, cycle_text, cycle_index = app_snapshot, text, 0
+                person = people[cycle_index % len(people)]
+                cycle_index = (cycle_index + 1) % len(people)
+                try:
+                    intro = wikipedia_intro(person["id"], lang)
+                except Exception as exc:
+                    LOG.warning("Wikipedia unavailable: %s", exc)
+                    intro = None
+                explanation = intro["text"] if intro else person["description"]
+                message = {"text": person["name"] + ": " + explanation,
+                           "duration": 15, "color": "#FF4444",
+                           "textCase": 2, "stack": False}
+                info = client.publish(PREFIX+"/notify",
+                                      json.dumps(message, ensure_ascii=False), qos=0)
+                LOG.info("Who-is-Who %s (%s) person %s/%s on %s; wikipedia=%s publish_rc=%s",
+                         person["name"], person["id"], cycle_index or len(people),
+                         len(people), app_snapshot, bool(intro), info.rc)
+            except Exception as exc:
+                LOG.warning("Who-is-Who lookup failed: %s", exc)
+            finally:
+                busy.release()
+        threading.Thread(target=explain, daemon=True).start()
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
