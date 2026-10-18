@@ -20,7 +20,7 @@ def publish(
     repeat=None,
 ):
     payload = {
-        "text": shorten(text),
+        "text": text if isinstance(text, list) else shorten(text),
         "duration": duration,
         "rainbow": False,
         "color": color,
