@@ -49,6 +49,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--run", action="store_true")
+    parser.add_argument("--daemon", action="store_true", help="Long-running controlled rotation")
     parser.add_argument("--minutes", type=int, default=8)
     args = parser.parse_args()
     saved = snapshot()
@@ -56,8 +57,10 @@ def main():
     if args.check:
         print("Read-only check OK. Trial requires stopped awtrix-markets.")
         return
-    if not args.run or args.minutes < 4 or args.minutes > 30:
-        parser.error("Use --run --minutes 8 (allowed 4..30) for explicit trial")
+    if args.run == args.daemon:
+        parser.error("Choose exactly one of --run or --daemon")
+    if args.run and not 4 <= args.minutes <= 30:
+        parser.error("Trial length must be 4..30 minutes")
     active = subprocess.run(["systemctl", "is-active", "--quiet", "awtrix-markets.service"], check=False)
     if active.returncode == 0:
         parser.error("awtrix-markets.service is active. Stop it before --run.")
@@ -84,7 +87,7 @@ def main():
         # Clear retained market values so a restart cannot resurrect stale apps.
         for topic in TOPICS:
             publish(client, topic, b"", True)
-        deadline = time.monotonic() + args.minutes * 60
+        deadline = (time.monotonic() + args.minutes * 60) if args.run else float("inf")
         next_batch = time.monotonic() + 10
         pending = set()
         seen = set()
@@ -128,7 +131,7 @@ def main():
                         log.info("Queued %s", topic)
                 next_batch = now + INTERVAL
             time.sleep(0.5)
-        log.info("Trial finished; restoring previous market tiles")
+        log.info("Rotation finished; restoring previous market tiles")
     finally:
         try:
             restore(client, saved)
