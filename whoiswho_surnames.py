@@ -25,13 +25,14 @@ def resolve_surname(surname, lang, headline=None):
     if len(rows) >= 50:
         return None
     humans = []
+    seen_ids = set()
     for row in rows:
         qid = row.get("id", "")
         label = row.get("label", "")
         # Only exact surname as final token; no substring matching.
         if not re.fullmatch(r"Q[1-9][0-9]*", qid):
             continue
-        if not label or label.split()[-1].casefold() != surname.casefold():
+        if not label or label.split()[-1].casefold() != surname.casefold() or qid in seen_ids:
             continue
         obj = request_json(ENTITY_API.format(qid)).get("entities", {}).get(qid, {})
         if human(obj):
@@ -39,6 +40,31 @@ def resolve_surname(surname, lang, headline=None):
             desc = descriptions.get(lang, descriptions.get("en", {})).get("value", "")
             if desc:
                 humans.append({"id": qid, "description": label + " — " + desc})
+                seen_ids.add(qid)
+    # Wikidata often returns only a family-name entry for a surname.
+    # Search Wikipedia for full article titles and independently verify each
+    # person through the existing strict Wikidata full-name lookup.
+    if not humans:
+        wiki_lang = lang if lang in ("de", "fr", "en") else "de"
+        wiki_url = "https://" + wiki_lang + ".wikipedia.org/w/api.php?" + urlencode({
+            "action": "query", "list": "search", "srsearch": surname,
+            "srlimit": 20, "format": "json"
+        })
+        try:
+            titles = request_json(wiki_url).get("query", {}).get("search", [])
+        except (OSError, ValueError, KeyError):
+            titles = []
+        for item in titles:
+            title = item.get("title", "")
+            # Require a genuine full personal name, ending with the surname.
+            if (not isinstance(title, str) or len(title.split()) < 2
+                    or title.split()[-1].casefold() != surname.casefold()):
+                continue
+            person = lookup_person(title, wiki_lang)
+            if person and person.get("verified_human") and person["id"] not in seen_ids:
+                humans.append({"id": person["id"],
+                               "description": person["name"] + " — " + person["description"]})
+                seen_ids.add(person["id"])
     if len(humans) == 1:
         return humans[0]["id"]
     if len(humans) > 1 and headline:
