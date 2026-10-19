@@ -1,8 +1,8 @@
 """Conservative surname proposals without a fixed person registry.
 
 Only mark a single-word surname after local AI proposes a full name,
-Wikidata uniquely verifies the full name as a human. Ambiguous matches
-are deliberately rejected.
+Wikidata verifies human candidates; headline context may disambiguate.
+Uncertain cases are rejected.
 When evidence is weak, return nothing.
 """
 import json
@@ -10,10 +10,10 @@ import re
 from urllib.request import Request, urlopen
 
 from whoiswho_extract import URL, MODEL
-from whoiswho_wikidata import lookup_person, request_json, API, ENTITY_API, human
+from whoiswho_wikidata import lookup_person, request_json, API, ENTITY_API, human, choose_with_context
 from urllib.parse import urlencode
 
-def resolve_surname(surname, lang):
+def resolve_surname(surname, lang, headline=None):
     """Fail closed unless Wikidata returns exactly one plausible human.
 
     An API result list can be truncated: reject full result sets, which cannot
@@ -35,10 +35,15 @@ def resolve_surname(surname, lang):
             continue
         obj = request_json(ENTITY_API.format(qid)).get("entities", {}).get(qid, {})
         if human(obj):
-            humans.append(qid)
-            if len(humans) > 1:
-                return None
-    return humans[0] if len(humans) == 1 else None
+            descriptions = obj.get("descriptions", {})
+            desc = descriptions.get(lang, descriptions.get("en", {})).get("value", "")
+            if desc:
+                humans.append({"id": qid, "description": label + " — " + desc})
+    if len(humans) == 1:
+        return humans[0]["id"]
+    if len(humans) > 1 and headline:
+        return choose_with_context(surname, headline, humans)
+    return None
 
 def proposals(headline, lang):
     if len(headline.split()) < 5:
@@ -89,7 +94,7 @@ def proposals(headline, lang):
             person = lookup_person(full, lang)
             confirmed = bool(person and person.get("verified_human"))
         else:
-            confirmed = bool(resolve_surname(surface, lang))
+            confirmed = bool(resolve_surname(surface, lang, headline))
         if not confirmed:
             continue
         for match in matches:
