@@ -1,0 +1,19 @@
+[Unit]
+Description=Vicky AWTRIX 3-minute market rotation (Montpellier HA-41)
+After=network-online.target docker.service
+Wants=network-online.target
+# Install only after disabling the existing awtrix-markets service.
+
+[Service]
+Type=simple
+User=gerd
+WorkingDirectory=/home/gerd/vicky-awtrix-news
+ExecStart=/home/gerd/vicky-awtrix-news/.venv/bin/python /home/gerd/vicky-awtrix-news/markets/market_rotation_trial.py --daemon
+# Restoration on normal exit is done by the Python finally handler.
+# On SIGKILL/power loss, republish retained snapshot when the daemon stops.
+ExecStopPost=/home/gerd/vicky-awtrix-news/.venv/bin/python /home/gerd/vicky-awtrix-news/markets/market_tile_backup.py --restore
+Restart=no
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
