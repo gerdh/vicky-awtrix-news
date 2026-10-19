@@ -44,6 +44,9 @@ def extract_person_names(headline):
             obj = json.loads(match.group(0))
         except (ValueError, TypeError):
             return []
+    # Local models occasionally wrap the requested JSON object in a list.
+    if isinstance(obj, list) and len(obj) == 1 and isinstance(obj[0], dict):
+        obj = obj[0]
     values = obj.get("names") if isinstance(obj, dict) else None
     if not isinstance(values, list):
         return []
