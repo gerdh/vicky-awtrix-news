@@ -94,6 +94,9 @@ def proposals(headline, lang):
         parsed = json.loads(text)
     except (ValueError, TypeError):
         return []
+    # Small local models sometimes wrap the JSON object in a one-item list.
+    if isinstance(parsed, list) and len(parsed) == 1 and isinstance(parsed[0], dict):
+        parsed = parsed[0]
     people = parsed.get("people", []) if isinstance(parsed, dict) else []
     if not isinstance(people, list):
         return []
