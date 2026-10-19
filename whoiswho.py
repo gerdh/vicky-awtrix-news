@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Opt-in AWTRIX Who-is-Who: select button explains verified names on current Vicky page.
+"""Opt-in AWTRIX Who-is-Who: right button explains verified names on current Vicky page.
 
 Dynamic Qwen name extraction + Wikidata identification. Each press cycles to the next person.
 """
@@ -84,12 +84,12 @@ def handle(client, userdata, msg):
             headlines[app] = (str(value), time.monotonic())
         except ValueError:
             return
-    elif suffix == "stats/buttonSelect" and payload.strip() == "1":
+    elif suffix == "stats/buttonRight" and payload.strip() == "1":
         # Safety: refuse if current page is unknown/stale, instead of explaining
         # a different headline. AWTRIX stats are not a frame-accurate event.
         now = time.monotonic()
         if not accept_app(current_app) or now-current_app_time > ACTIVE_SECONDS:
-            LOG.info("Select ignored: current news page unknown/stale")
+            LOG.info("Right ignored: current news page unknown/stale")
             return
         item = headlines.get(current_app)
         if not item or now-item[1] > CACHE_SECONDS:
@@ -108,7 +108,7 @@ def handle(client, userdata, msg):
             try:
                 people = verified_people(text, lang)
                 if not people:
-                    LOG.info("Select: no verified person in %s", app_snapshot)
+                    LOG.info("Right: no verified person in %s", app_snapshot)
                     return
                 if cycle_app != app_snapshot or cycle_text != text:
                     cycle_app, cycle_text, cycle_index = app_snapshot, text, 0
@@ -145,7 +145,7 @@ def main():
             LOG.error("MQTT refused: %s", reason_code)
             return
         client.subscribe([(PREFIX+"/stats", 0),
-                          (PREFIX+"/stats/buttonSelect", 0),
+                          (PREFIX+"/stats/buttonRight", 0),
                           (PREFIX+"/custom/+", 0)])
     client.on_connect = connected
     client.connect(BROKER, int(getattr(config, "MQTT_PORT", 1883)), 60)
