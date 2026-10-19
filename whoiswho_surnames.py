@@ -1,8 +1,8 @@
 """Conservative surname proposals without a fixed person registry.
 
 Only mark a single-word surname after local AI proposes a full name,
-Wikidata verifies the full name as a human, and TWO context words from
-the verified Wikidata description occur in the headline.
+Wikidata uniquely verifies the full name as a human. Ambiguous matches
+are deliberately rejected.
 When evidence is weak, return nothing.
 """
 import json
@@ -54,14 +54,11 @@ def proposals(headline, lang):
         matches = list(re.finditer(r"(?<!\w)" + re.escape(surface) + r"(?!\w)", headline, re.I))
         if not matches:
             continue
-        person = lookup_person(full, lang, headline=headline)
+        # Full name is a Qwen proposal, not literal headline text. Requiring
+        # it to occur verbatim would incorrectly reject surname-only headlines.
+        # With no context Wikidata accepts only a single exact human match.
+        person = lookup_person(full, lang)
         if not person or not person.get("verified_human") or not person.get("description"):
-            continue
-        # Independent contextual confirmation: two substantive terms from
-        # the Wikidata description must also appear in this headline.
-        desc = {w.casefold() for w in re.findall(r"\b[^\W\d_]{5,}\b", person["description"])}
-        news = {w.casefold() for w in re.findall(r"\b[^\W\d_]{5,}\b", headline)}
-        if len(desc & news - {surface.casefold()}) < 2:
             continue
         for match in matches:
             result.append((match.start(), match.end()))
