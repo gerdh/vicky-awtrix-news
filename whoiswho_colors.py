@@ -4,6 +4,7 @@ Opt-in; no static person directory. Never mark an unverified name.
 AWTRIX 3 supports text fragments as {"t": text, "c": hex}.
 """
 import re
+import os
 from whoiswho_extract import extract_person_names
 from whoiswho_wikidata import lookup_person
 
@@ -18,6 +19,12 @@ def fragments(headline, color, lang):
         for match in re.finditer(r"(?<!\w)" + re.escape(name) + r"(?!\w)",
                                  headline, flags=re.I):
             candidates.append((match.start(), match.end()))
+    if os.environ.get("VICKY_WHOISWHO_SURNAMES") == "1":
+        try:
+            from whoiswho_surnames import proposals
+            candidates.extend(proposals(headline, lang))
+        except Exception:
+            pass  # Fail closed: unverified surnames retain normal color.
     candidates.sort(key=lambda x: (x[0], -(x[1] - x[0])))
     parts = []
     at = 0
