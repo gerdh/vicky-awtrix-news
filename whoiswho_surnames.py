@@ -21,9 +21,9 @@ def proposals(headline, lang):
             {"role":"system","content":
              "Identify only single-word surnames referring to people in a news headline. "
              "Propose each person's full name. Exclude places, organizations, "
-             "ordinary words and uncertain cases. Output JSON only, e.g. "
-             "{\\\"people\\\":[{\\\"surface\\\":\\\"Klingbeil\\\",\\\"full_name\\\":\\\"Lars Klingbeil\\\"}]}. "
-             "For uncertainty output {\\\"people\\\":[]}. "},
+             "ordinary words and uncertain cases. Return a JSON object with a people "
+             "array; each item has surface and full_name keys. "
+             "When uncertain, return an empty people array."},
             {"role":"user","content":headline[:500]}
         ]
     }
