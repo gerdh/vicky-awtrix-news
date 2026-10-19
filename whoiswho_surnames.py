@@ -10,7 +10,35 @@ import re
 from urllib.request import Request, urlopen
 
 from whoiswho_extract import URL, MODEL
-from whoiswho_wikidata import lookup_person
+from whoiswho_wikidata import lookup_person, request_json, API, ENTITY_API, human
+from urllib.parse import urlencode
+
+def resolve_surname(surname, lang):
+    """Fail closed unless Wikidata returns exactly one plausible human.
+
+    An API result list can be truncated: reject full result sets, which cannot
+    support a unique-person claim. No manually curated identities.
+    """
+    params = urlencode({"action": "wbsearchentities", "search": surname,
+                        "language": lang, "format": "json", "limit": 50})
+    rows = request_json(API + "?" + params).get("search", [])
+    if len(rows) >= 50:
+        return None
+    humans = []
+    for row in rows:
+        qid = row.get("id", "")
+        label = row.get("label", "")
+        # Only exact surname as final token; no substring matching.
+        if not re.fullmatch(r"Q[1-9][0-9]*", qid):
+            continue
+        if not label or label.split()[-1].casefold() != surname.casefold():
+            continue
+        obj = request_json(ENTITY_API.format(qid)).get("entities", {}).get(qid, {})
+        if human(obj):
+            humans.append(qid)
+            if len(humans) > 1:
+                return None
+    return humans[0] if len(humans) == 1 else None
 
 def proposals(headline, lang):
     if len(headline.split()) < 5:
@@ -48,7 +76,7 @@ def proposals(headline, lang):
         surface, full = surface.strip(), " ".join(full.split())
         if not re.fullmatch(r"[^\W\d_][\w'-]{2,}", surface, re.UNICODE):
             continue
-        if len(full.split()) < 2 or surface.casefold() not in {p.casefold().strip(".,") for p in full.split()}:
+        if surface.casefold() not in {p.casefold().strip(".,") for p in full.split()}:
             continue
         # Never highlight a substring of a normal word.
         matches = list(re.finditer(r"(?<!\w)" + re.escape(surface) + r"(?!\w)", headline, re.I))
@@ -57,8 +85,12 @@ def proposals(headline, lang):
         # Full name is a Qwen proposal, not literal headline text. Requiring
         # it to occur verbatim would incorrectly reject surname-only headlines.
         # With no context Wikidata accepts only a single exact human match.
-        person = lookup_person(full, lang)
-        if not person or not person.get("verified_human") or not person.get("description"):
+        if len(full.split()) >= 2:
+            person = lookup_person(full, lang)
+            confirmed = bool(person and person.get("verified_human"))
+        else:
+            confirmed = bool(resolve_surname(surface, lang))
+        if not confirmed:
             continue
         for match in matches:
             result.append((match.start(), match.end()))
