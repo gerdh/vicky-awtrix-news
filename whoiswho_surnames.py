@@ -71,7 +71,7 @@ def resolve_surname(surname, lang, headline=None):
         return choose_with_context(surname, headline, humans)
     return None
 
-def proposals(headline, lang):
+def proposals(headline, lang, with_people=False):
     if len(headline.split()) < 5:
         return []
     body = {
@@ -123,9 +123,20 @@ def proposals(headline, lang):
             person = lookup_person(full, lang)
             confirmed = bool(person and person.get("verified_human"))
         else:
-            confirmed = bool(resolve_surname(surface, lang, headline))
+            qid = resolve_surname(surface, lang, headline)
+            person = None
+            if qid:
+                obj = request_json(ENTITY_API.format(qid)).get("entities", {}).get(qid, {})
+                labels = obj.get("labels", {})
+                descriptions = obj.get("descriptions", {})
+                person = {"id": qid,
+                          "name": labels.get(lang, labels.get("en", {})).get("value", surface),
+                          "description": descriptions.get(lang, descriptions.get("en", {})).get("value", ""),
+                          "verified_human": human(obj)}
+            confirmed = bool(person and person.get("verified_human") and person.get("description"))
         if not confirmed:
             continue
         for match in matches:
-            result.append((match.start(), match.end()))
+            span = (match.start(), match.end())
+            result.append({"span": span, "person": person} if with_people else span)
     return result
