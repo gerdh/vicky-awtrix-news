@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent
 GLOSSARY = ROOT / "whoiswho_glossary.json"
 import config
 
-PREFIX = config.AWTRIX_UID
+PREFIX = getattr(config, "AWTRIX_UID", "") or getattr(config, "BASE_TOPIC", "").removesuffix("/custom")
 BROKER = config.MQTT_HOST
 AUTH_USER = getattr(config, "MQTT_USER", "")
 AUTH_PASS = getattr(config, "MQTT_PASS", "")
@@ -44,13 +44,16 @@ def language():
         return "de"
 
 def verified_people(text, lang):
-    """Resolve only Qwen-extracted names that Wikidata verifies as humans."""
-    result = []
-    for name in extract_person_names(text):
-        item = lookup_person(name, lang, headline=text)
-        if item and item.get("verified_human") and item.get("description"):
-            if item["id"] not in {x["id"] for x in result}:
-                result.append(item)
+    """Explain the identities used for red names, including surname-only names."""
+    from whoiswho_colors import cached_people, resolve_people
+    result = cached_people(text, lang)
+    if result:
+        return result
+    # Legacy caches only held spans. Re-resolve once after upgrading.
+    for row in resolve_people(text, lang, surname_mode=True):
+        person = row["person"]
+        if person["id"] not in {p["id"] for p in result}:
+            result.append(person)
     return result
 
 def accept_app(app):
@@ -136,6 +139,8 @@ def handle(client, userdata, msg):
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    if not PREFIX:
+        raise ValueError("AWTRIX_UID or BASE_TOPIC is required")
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="vicky-whoiswho")
     if AUTH_USER:
         client.username_pw_set(AUTH_USER, AUTH_PASS)

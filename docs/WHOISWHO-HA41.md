@@ -1,71 +1,59 @@
-# Vicky Who-is-Who – experimental opt-in on HA-41
+# Vicky Who-is-Who: right button
 
-This branch provides a **safe prototype** for the AWTRIX TC001 middle button
-(`AWTRIX_UID/stats/buttonSelect`). It has not been field-tested on the user's device.
-It does not alter existing news, markets or left/right-button services.
+This optional listener explains people on the current Vicky news page. The
+right button cycles through the verified people. A Wikipedia introduction is
+preferred, with the Wikidata description as a fallback. No new news text is
+invented. Unknown people produce no explanation.
 
-## Behavior
-- Subscribes to the AWTRIX MQTT `stats` current-app report and Vicky custom news page topics.
-- On a middle-button press (`1`), only explains an entity if the current news
-  app and cached headline are both recently confirmed.
-- Explains **only explicitly verified names** listed in `whoiswho_glossary.json`.
-  This avoids guessing between people with the same name or hallucinating biographies.
-- Sends a brief non-retained MQTT notification with a red label, in the saved
-  Vicky language (DE, FR or EN).
-- If nothing can be verified, it does nothing.
-- It **does not yet paint individual names red in the scrolling headline**.
-  AWTRIX supports color fragments but that requires a separate news-publisher
-  integration with a validated entity index.
-- AWTRIX stats timing is not frame-exact. A refresh or transition can race a
-  button press; the listener errs on the side of showing no explanation.
+Red-name rendering and explanations share verified identities in
+`cache/whoiswho_names.json`, keyed by the exact displayed headline and language.
+Surname-only headlines retain the person's Q-ID and full name. Old span-only
+cache entries are rebuilt on the next news publication. Without an identity
+cache, the listener uses the same full-name and surname resolver.
 
-## Install on HA-41, not MOON
-Do not use the existing Vicky 9.1.3 installer, which expects Victron.
+## Installation on the existing news host
+
+Use the same checkout, user, local `config.py`, cache and Python environment
+as the running news publisher. Do not copy credentials between sites.
 
 ```bash
-cd ~/vicky-awtrix-news
-git fetch origin feature/whoiswho-middle-button
-git switch feature/whoiswho-middle-button
-.venv/bin/python -m pip install paho-mqtt
-.venv/bin/python -m py_compile whoiswho.py
-```
-
-For **manual testing**, run the listener in a terminal:
-```bash
-cd ~/vicky-awtrix-news
+.venv/bin/python -m pip install 'paho-mqtt>=2,<3'
 .venv/bin/python whoiswho.py
 ```
-Press middle while a Vicky headline with an explicitly verified glossary name
-is currently active. Ctrl-C stops the test.
 
-Only after successful manual testing, optionally create an isolated unit:
+The listener needs the publisher's retained `custom/vicky_news_[ab]_[1-5]`
+payloads, current `stats.app`, and `stats/buttonRight` press payload `1`.
+It refuses unknown/stale current apps rather than selecting another headline.
+Check its log if a button press produces no explanation. The local name
+extractor requires the existing local AI endpoint; cached identities do not.
+
+## Avoid a conflicting language notification
+
+The older button service also uses the right button for language. When running
+Who-is-Who, set `VICKY_WHOISWHO_RIGHT=1` in that service's environment. Its
+language action then moves to the middle button (`buttonSelect`); left remains
+refresh. With the option unset, the old button behavior remains unchanged.
+
+For an existing systemd installation, use `sudo systemctl edit
+vicky-awtrix-button` and add:
+
 ```ini
-[Unit]
-Description=Vicky Who-is-Who (experimental)
-After=network-online.target docker.service
-Wants=network-online.target
-
 [Service]
-User=gerd
-WorkingDirectory=/home/gerd/vicky-awtrix-news
-ExecStart=/home/gerd/vicky-awtrix-news/.venv/bin/python /home/gerd/vicky-awtrix-news/whoiswho.py
-Restart=on-failure
-RestartSec=15
-
-[Install]
-WantedBy=multi-user.target
+Environment=VICKY_WHOISWHO_RIGHT=1
 ```
-Save this as `/etc/systemd/system/vicky-whoiswho.service`; then
-`sudo systemctl daemon-reload && sudo systemctl enable --now vicky-whoiswho`.
-Use `journalctl -u vicky-whoiswho -f` to diagnose; stop/disable to roll back.
-Do **not** deploy the prototype until the middle-button telemetry has been
-verified on the actual firmware 0.98 device.
 
-## Next implementation steps
-1. Confirm whether stats updates provide sufficiently accurate app identity
-   for the actual AWTRIX firmware, or use explicit app transition events.
-2. Build a Wikipedia/Wikidata-backed resolver with disambiguation, caching and
-   reviewable sources. Only verified entities should be advertised as explorable.
-3. Insert AWTRIX colored text fragments into the news publisher without changing
-   headlines or their loop order; add regression tests for the two repeats,
-   selected language and no-Victron site.
+Restart that button service after updating its script. Run Who-is-Who manually
+first; only enable a persistent service after checking it on the actual AWTRIX.
+Use the local news service's User, WorkingDirectory and Python interpreter for
+that service, with `whoiswho.py` as its script. It must inherit any custom
+`VICKY_WHOISWHO_AI_URL` / `VICKY_WHOISWHO_AI_MODEL` settings.
+
+## Validation
+
+```bash
+python3 -m unittest discover -s tests -p 'test_whoiswho_explanations.py'
+```
+
+Automated tests use fake people and mocked network/MQTT; they do not verify the
+installed firmware, live button telemetry or service state. This fix does not
+deploy or restart a running installation.

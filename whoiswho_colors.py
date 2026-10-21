@@ -1,6 +1,7 @@
 """Color only Wikidata-verified names; cache successes by complete headline."""
 import hashlib
 import json
+import logging
 import os
 import re
 import time
@@ -54,6 +55,46 @@ def _render(headline, color, candidates):
         parts.append({"t": headline[at:], "c": color})
     return parts if any(p["c"] == RED for p in parts) else headline
 
+def cached_people(headline, lang):
+    """Use identities saved by the publisher, including surname-mode results."""
+    cache = _load()
+    for surname_mode in (True, False):
+        entry = cache.get(_key(headline, lang, surname_mode))
+        if not isinstance(entry, dict):
+            continue
+        ts = entry.get("ts")
+        if not isinstance(ts, (int, float)) or not 0 <= time.time() - ts < TTL:
+            continue
+        people = entry.get("people")
+        if isinstance(people, list) and people and all(
+            isinstance(p, dict) and p.get("verified_human") is True
+            and re.fullmatch(r"Q[1-9][0-9]*", str(p.get("id", "")))
+            and isinstance(p.get("name"), str) and p.get("description")
+            for p in people
+        ):
+            return people
+    return []
+
+
+def resolve_people(headline, lang, surname_mode=False):
+    """Return verified identities alongside their literal headline spans."""
+    rows = []
+    for name in extract_person_names(headline):
+        person = lookup_person(name, lang, headline=headline)
+        if not (person and person.get("verified_human") and person.get("description")):
+            continue
+        for match in re.finditer(r"(?<!\w)" + re.escape(name) + r"(?!\w)", headline, re.I):
+            rows.append({"span": (match.start(), match.end()), "person": person})
+    if surname_mode:
+        from whoiswho_surnames import proposals
+        try:
+            rows.extend(proposals(headline, lang, with_people=True))
+        except Exception as exc:
+            logging.getLogger("vicky.whoiswho").warning("Surname lookup unavailable: %s", exc)
+    rows.sort(key=lambda row: (row["span"][0], -row["span"][1]))
+    return rows
+
+
 def fragments(headline, color, lang):
     surname_mode = os.environ.get("VICKY_WHOISWHO_SURNAMES") == "1"
     key = _key(headline, lang, surname_mode)
@@ -63,27 +104,19 @@ def fragments(headline, color, lang):
     if isinstance(entry, dict):
         ts, spans = entry.get("ts"), entry.get("spans")
         if (isinstance(ts, (int, float)) and 0 <= now - ts < TTL
-            and isinstance(spans, list) and spans
+            and entry.get("people") and isinstance(spans, list) and spans
             and all(isinstance(p, list) and len(p) == 2
                     and all(type(v) is int for v in p)
                     and 0 <= p[0] < p[1] <= len(headline) for p in spans)):
             return _render(headline, color, [tuple(p) for p in spans])
-    candidates = []
-    for name in extract_person_names(headline):
-        verified = lookup_person(name, lang, headline=headline)
-        if not (verified and verified.get("verified_human")):
-            continue
-        for match in re.finditer(r"(?<!\w)" + re.escape(name) + r"(?!\w)",
-                                 headline, flags=re.I):
-            candidates.append((match.start(), match.end()))
-    if surname_mode:
-        try:
-            from whoiswho_surnames import proposals
-            candidates.extend(proposals(headline, lang))
-        except Exception:
-            pass
+    rows = resolve_people(headline, lang, surname_mode)
+    candidates = [row["span"] for row in rows]
+    people = []
+    for row in rows:
+        if row["person"]["id"] not in {p["id"] for p in people}:
+            people.append(row["person"])
     if candidates:
-        cache[key] = {"ts": now, "spans": [list(p) for p in candidates]}
+        cache[key] = {"ts": now, "spans": [list(p) for p in candidates], "people": people}
         kept = [(k, v) for k, v in cache.items()
                 if isinstance(v, dict) and isinstance(v.get("ts"), (int, float))
                 and 0 <= now - v["ts"] < TTL]
