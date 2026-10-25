@@ -1,7 +1,7 @@
-# Vicky Who-is-Who: right button
+# Vicky Who-is-Who: left button
 
 This optional listener explains people on the current Vicky news page. The
-right button cycles through the verified people. A Wikipedia introduction is
+left button cycles through the verified people. A Wikipedia introduction is
 preferred, with the Wikidata description as a fallback. No new news text is
 invented. Unknown people produce no explanation.
 
@@ -22,31 +22,23 @@ as the running news publisher. Do not copy credentials between sites.
 ```
 
 The listener needs the publisher's retained `custom/vicky_news_[ab]_[1-5]`
-payloads, current `stats.app`, and `stats/buttonRight` press payload `1`.
+payloads, current `stats.app`, and `stats/buttonLeft` press payload `1`.
 It refuses unknown/stale current apps rather than selecting another headline.
 Check its log if a button press produces no explanation. The local name
 extractor requires the existing local AI endpoint; cached identities do not.
 
-## Avoid a conflicting language notification
+## Button ownership
 
-The older button service also uses the right button for language. When running
-Who-is-Who, set `VICKY_WHOISWHO_RIGHT=1` in that service's environment. Its
-language action then moves to the middle button (`buttonSelect`); left remains
-refresh. With the option unset, the old button behavior remains unchanged.
+- Left (`buttonLeft`): Who-is-Who only, handled by `whoiswho.py`.
+- Right (`buttonRight`): language switching, handled by `scripts/vicky-awtrix-button`.
+- Middle (`buttonSelect`): neither service subscribes; existing behavior is untouched.
 
-For an existing systemd installation, use `sudo systemctl edit
-vicky-awtrix-button` and add:
-
-```ini
-[Service]
-Environment=VICKY_WHOISWHO_RIGHT=1
-```
-
-Restart that button service after updating its script. Run Who-is-Who manually
-first; only enable a persistent service after checking it on the actual AWTRIX.
-Use the local news service's User, WorkingDirectory and Python interpreter for
-that service, with `whoiswho.py` as its script. It must inherit any custom
-`VICKY_WHOISWHO_AI_URL` / `VICKY_WHOISWHO_AI_MODEL` settings.
+Left no longer refreshes news. No environment toggle is needed. Restart the
+button service after updating its script, since an already running shell may
+still have the old subscriptions. Run Who-is-Who manually first, then install
+its persistent service using the news host's existing Python environment and
+local configuration. Preserve local files before updating; do not switch branches
+or overwrite the news publisher's local changes blindly.
 
 ## Validation
 

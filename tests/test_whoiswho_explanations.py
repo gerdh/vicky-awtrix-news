@@ -83,8 +83,11 @@ class ExplanationTests(unittest.TestCase):
         client = Mock()
         def immediate_thread(target, **kwargs):
             return types.SimpleNamespace(start=target)
-        event = types.SimpleNamespace(topic='test/stats/buttonRight', payload=b'1')
+        event = types.SimpleNamespace(topic='test/stats/buttonLeft', payload=b'1')
         with patch.object(module, 'verified_people', return_value=[PERSON, second]), patch.object(module, 'language', return_value='en'), patch.object(module, 'wikipedia_intro', side_effect=OSError('offline')), patch.object(module.threading, 'Thread', side_effect=immediate_thread):
+            for button in ('buttonRight', 'buttonSelect'):
+                module.handle(client, None, types.SimpleNamespace(topic='test/stats/' + button, payload=b'1'))
+            client.publish.assert_not_called()
             module.handle(client, None, event)
             module.handle(client, None, event)
             messages = [json.loads(c.args[1]) for c in client.publish.call_args_list]

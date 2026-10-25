@@ -64,13 +64,8 @@ fi
 /usr/bin/mosquitto_pub -h "$MQTT_HOST" "${MQTT_AUTH[@]}" \
   -t "$AWTRIX_UID/notify/dismiss" -n || true
 
-# Opt-in Who-is-Who keeps the right button exclusively for explanations.
-# Set this on the button service when enabling the separate whoiswho listener.
-LANGUAGE_BUTTON="buttonRight"
-if [ "${VICKY_WHOISWHO_RIGHT:-0}" = "1" ]; then
-    LANGUAGE_BUTTON="buttonSelect"
-fi
-echo "Vicky button listener: $LANGUAGE_BUTTON=language, left=refresh, uid=$AWTRIX_UID"
+# Left is handled exclusively by whoiswho.py; middle is untouched.
+echo "Vicky button listener: right=language, left=whoiswho (separate listener), uid=$AWTRIX_UID"
 
 # The listener must stay connected. If authentication or the broker fails,
 # propagate a non-zero exit status so systemd records a real failure.
@@ -78,8 +73,7 @@ echo "Vicky button listener: $LANGUAGE_BUTTON=language, left=refresh, uid=$AWTRI
   -h "$MQTT_HOST" \
   "${MQTT_AUTH[@]}" \
   -v \
-  -t "$AWTRIX_UID/stats/buttonLeft" \
-  -t "$AWTRIX_UID/stats/$LANGUAGE_BUTTON" |
+  -t "$AWTRIX_UID/stats/buttonRight" |
 while read -r topic value
 do
     if [ "$value" != "1" ]; then
@@ -87,11 +81,7 @@ do
     fi
 
     case "$topic" in
-        "$AWTRIX_UID/stats/buttonLeft")
-            touch /tmp/vicky-news-force-refresh
-            ;;
-
-        "$AWTRIX_UID/stats/$LANGUAGE_BUTTON")
+        "$AWTRIX_UID/stats/buttonRight")
             cd "$VICKY_DIR" || continue
             lang=$("$PYTHON_BIN" -c 'from language_state import cycle_output_language; print(cycle_output_language())')
             echo "Vicky language switched to: $lang"
