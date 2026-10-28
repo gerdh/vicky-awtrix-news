@@ -93,6 +93,9 @@ class ExplanationTests(unittest.TestCase):
             messages = [json.loads(c.args[1]) for c in client.publish.call_args_list]
             self.assertEqual(messages[0]['text'], 'Ada Example: test researcher')
             self.assertEqual(messages[1]['text'], 'Other Example: test researcher')
+            for message in messages:
+                self.assertEqual(message['repeat'], 1)
+                self.assertFalse(message.get('hold', False))
             self.assertEqual(client.publish.call_args.args[0], 'test/notify')
             module.current_app_time -= 100
             module.handle(client, None, event)

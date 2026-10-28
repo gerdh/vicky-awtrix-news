@@ -5,6 +5,11 @@ left button cycles through the verified people. A Wikipedia introduction is
 preferred, with the Wikidata description as a fallback. No new news text is
 invented. Unknown people produce no explanation.
 
+Explanations use `repeat: 1` so scrolling finishes once before returning to the
+normal app loop. The 15-second `duration` only applies to short, non-scrolling
+text. Notifications are not held indefinitely. A different publisher sending
+`notify` with `stack: false` or `notify/dismiss` can still interrupt them.
+
 Red-name rendering and explanations share verified identities in
 `cache/whoiswho_names.json`, keyed by the exact displayed headline and language.
 Surname-only headlines retain the person's Q-ID and full name. Old span-only

@@ -140,8 +140,11 @@ def handle(client, userdata, msg):
                     LOG.warning("Wikipedia unavailable: %s", exc)
                     intro = None
                 explanation = intro["text"] if intro else person["description"]
+                # AWTRIX's repeat count takes precedence over duration for
+                # scrolling text. Finish the full explanation once; duration
+                # remains the fallback for text that fits without scrolling.
                 message = {"text": person["name"] + ": " + explanation,
-                           "duration": 15, "color": "#FF4444",
+                           "repeat": 1, "duration": 15, "color": "#FF4444",
                            "textCase": 2, "stack": False}
                 info = client.publish(PREFIX+"/notify",
                                       json.dumps(message, ensure_ascii=False), qos=0)
