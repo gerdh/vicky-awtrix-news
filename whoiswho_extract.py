@@ -13,6 +13,33 @@ from urllib.request import Request, urlopen
 URL = os.environ.get("VICKY_WHOISWHO_AI_URL", "http://127.0.0.1:8079/v1/chat/completions")
 MODEL = os.environ.get("VICKY_WHOISWHO_AI_MODEL", "local-model")
 
+def normalize_names(values, headline):
+    """Repair split name tokens only when they are adjacent in the source text.
+
+    These remain candidates: callers must still verify the identity via Wikidata.
+    Never combine across punctuation, missing words or separate headlines.
+    """
+    names = [" ".join(v.split()) for v in values[:8] if isinstance(v, str)]
+    singles = {n for n in names if len(n.split()) == 1 and n
+               and len(n) <= 100 and any(c.isalpha() for c in n)
+               and all(c.isalpha() or c in "-'’" for c in n)}
+    if len(singles) >= 2:
+        token = "(?:" + "|".join(re.escape(n) for n in
+                                  sorted(singles, key=lambda n: (-len(n), n))) + ")"
+        pattern = r"(?<!\w)" + token + r"(?:\s+" + token + r")+(?!\w)"
+        names.extend(m.group(0) for m in re.finditer(pattern, headline, re.I))
+    found = []
+    seen = set()
+    for name in names:
+        if not 3 <= len(name) <= 100 or len(name.split()) < 2:
+            continue
+        if name.casefold() in seen:
+            continue
+        if re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", headline, re.I):
+            found.append(name)
+            seen.add(name.casefold())
+    return found
+
 def extract_person_names(headline):
     headline = " ".join(headline.split())[:500]
     if not headline:
@@ -24,6 +51,7 @@ def extract_person_names(headline):
         "messages": [
             {"role": "system", "content":
              "Extract complete person names explicitly written in the headline. "
+             "Each complete name must be ONE string, never separate first and last names. "
              "Do not invent or complete names. Do not return places, organizations, "
              "jobs or surnames without first names. Return JSON only in exactly "
              "this format: {\"names\":[\"First Last\"]}. If none: {\"names\":[]}."},
@@ -50,19 +78,7 @@ def extract_person_names(headline):
     values = obj.get("names") if isinstance(obj, dict) else None
     if not isinstance(values, list):
         return []
-    found = []
-    for name in values[:8]:
-        if not isinstance(name, str):
-            continue
-        name = " ".join(name.split()).strip()
-        if not (3 <= len(name) <= 100):
-            continue
-        if len(name.split()) < 2:
-            continue
-        # The model cannot add any characters or invent a name not in the input.
-        if re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", headline, re.I) and name not in found:
-            found.append(name)
-    return found
+    return normalize_names(values, headline)
 
 if __name__ == "__main__":
     headline = " ".join(sys.argv[1:]).strip()
