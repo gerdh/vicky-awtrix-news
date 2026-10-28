@@ -22,8 +22,14 @@ as the running news publisher. Do not copy credentials between sites.
 ```
 
 The listener needs the publisher's retained `custom/vicky_news_[ab]_[1-5]`
-payloads, current `stats.app`, and `stats/buttonLeft` press payload `1`.
-It refuses unknown/stale current apps rather than selecting another headline.
+payloads, `stats/currentApp` change events, and `stats/buttonLeft` press payload `1`.
+The current-app event remains valid until another app event or MQTT disconnect;
+long scrolling headlines do not expire after 20 seconds. Before the first event,
+`stats.app` is a fallback with a 20-second freshness limit. Retained telemetry is
+ignored. The page and headline are captured at button receipt, before any later
+native page-change event. A market/notification event clears the news selection.
+AWTRIX still performs its native left-button navigation; an explanation overlays
+the loop when ready. No global button-block setting is changed, preserving middle.
 Check its log if a button press produces no explanation. The local name
 extractor requires the existing local AI endpoint; cached identities do not.
 

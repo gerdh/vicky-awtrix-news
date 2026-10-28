@@ -30,6 +30,7 @@ ACTIVE_SECONDS = 20
 headlines = {}
 current_app = None
 current_app_time = 0
+current_app_live = False
 cycle_app = None
 cycle_text = None
 cycle_index = 0
@@ -59,19 +60,34 @@ def verified_people(text, lang):
 def accept_app(app):
     return bool(re.fullmatch(r"vicky_news_[ab]_[1-5]", app or ""))
 
+def disconnected(client, userdata, flags, reason_code, properties):
+    global current_app, current_app_time, current_app_live
+    current_app, current_app_time, current_app_live = None, 0, False
+
 def handle(client, userdata, msg):
-    global current_app, current_app_time, cycle_app, cycle_text, cycle_index
+    global current_app, current_app_time, current_app_live, cycle_app, cycle_text, cycle_index
     suffix = msg.topic[len(PREFIX)+1:]
     try:
         payload = msg.payload.decode("utf-8")
     except UnicodeDecodeError:
         return
-    if suffix == "stats":
+    # Retained custom payloads are needed at startup, but retained telemetry
+    # must not select an old page or replay a button press after reconnecting.
+    if suffix.startswith("stats") and getattr(msg, "retain", False):
+        return
+    if suffix == "stats/currentApp":
+        # AWTRIX sends this on changes, not periodically. A long scrolling
+        # headline remains current until the next event or disconnection.
+        current_app, current_app_time = payload.strip(), time.monotonic()
+        current_app_live = True
+    elif suffix == "stats":
         try:
             app = json.loads(payload).get("app")
         except (ValueError, AttributeError):
             return
-        if isinstance(app, str):
+        # Stats are a startup/older-firmware fallback. Once the change stream
+        # is available it owns the selection, including non-news pages.
+        if isinstance(app, str) and not current_app_live:
             current_app, current_app_time = app, time.monotonic()
     elif suffix.startswith("custom/"):
         app = suffix[len("custom/"):]
@@ -88,22 +104,23 @@ def handle(client, userdata, msg):
         except ValueError:
             return
     elif suffix == "stats/buttonLeft" and payload.strip() == "1":
-        # Safety: refuse if current page is unknown/stale, instead of explaining
-        # a different headline. AWTRIX stats are not a frame-accurate event.
+        # Snapshot the displayed page before native left-button navigation
+        # reports the next app. Do not reuse a news page after a market event.
         now = time.monotonic()
-        if not accept_app(current_app) or now-current_app_time > ACTIVE_SECONDS:
-            LOG.info("Left ignored: current news page unknown/stale")
+        if not accept_app(current_app) or (not current_app_live and now-current_app_time > ACTIVE_SECONDS):
+            LOG.info("Left ignored: app=%s source=%s age=%.1fs", current_app,
+                     "currentApp" if current_app_live else "stats", now-current_app_time)
             return
         item = headlines.get(current_app)
         if not item or now-item[1] > CACHE_SECONDS:
-            LOG.info("Select ignored: no recent headline for %s", current_app)
+            LOG.info("Left ignored: no recent headline for %s", current_app)
             return
         text = item[0]
         lang = language()
         # Network/API requests must never block paho's MQTT callback: otherwise
         # stats and subsequent button events would become stale while Qwen runs.
         if not busy.acquire(blocking=False):
-            LOG.info("Select ignored: previous lookup still running")
+            LOG.info("Left ignored: previous lookup still running")
             return
         app_snapshot = current_app
         def explain():
@@ -145,14 +162,18 @@ def main():
     if AUTH_USER:
         client.username_pw_set(AUTH_USER, AUTH_PASS)
     client.on_message = handle
+    client.on_disconnect = disconnected
     def connected(client, userdata, flags, reason_code, properties):
+        disconnected(client, userdata, None, None, None)
         if reason_code != 0:
             LOG.error("MQTT refused: %s", reason_code)
             return
         client.subscribe([(PREFIX+"/stats", 0),
+                          (PREFIX+"/stats/currentApp", 0),
                           (PREFIX+"/stats/buttonLeft", 0),
                           (PREFIX+"/custom/+", 0)])
     client.on_connect = connected
+    LOG.info("Who-is-Who: left=explanation; tracking stats/currentApp; uid=%s", PREFIX)
     client.connect(BROKER, int(getattr(config, "MQTT_PORT", 1883)), 60)
     client.loop_forever()
 

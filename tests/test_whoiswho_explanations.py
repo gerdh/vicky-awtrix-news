@@ -98,6 +98,69 @@ class ExplanationTests(unittest.TestCase):
             module.handle(client, None, event)
             self.assertEqual(client.publish.call_count, 2)
 
+    def test_live_page_survives_long_scroll_and_captures_before_market_switch(self):
+        module = listener()
+        client = Mock()
+        tasks = []
+        def event(suffix, payload):
+            module.handle(client, None, types.SimpleNamespace(
+                topic='test/' + suffix, payload=payload.encode(), retain=False))
+        def deferred_thread(target, **kwargs):
+            return types.SimpleNamespace(start=lambda: tasks.append(target))
+        with patch.object(module.time, 'monotonic', return_value=100):
+            event('custom/vicky_news_a_1', json.dumps({'text': TEXT}))
+            event('stats/currentApp', 'vicky_news_a_1')
+        with patch.object(module.time, 'monotonic', return_value=200), patch.object(module.threading, 'Thread', side_effect=deferred_thread), patch.object(module, 'language', return_value='en'):
+            # Periodic stats must not replace the live page-change stream.
+            event('stats', '{"app":"old_market"}')
+            event('stats/buttonLeft', '1')
+            self.assertEqual(len(tasks), 1)
+            event('stats/currentApp', 'market_nvidia')
+            event('stats/buttonLeft', '1')
+            self.assertEqual(len(tasks), 1)
+        with patch.object(module, 'verified_people', return_value=[PERSON]) as lookup, patch.object(module, 'wikipedia_intro', return_value=None):
+            tasks[0]()
+            lookup.assert_called_once_with(TEXT, 'en')
+            self.assertEqual(module.cycle_app, 'vicky_news_a_1')
+            self.assertEqual(json.loads(client.publish.call_args.args[1])['text'],
+                             'Ada Example: test researcher')
+
+    def test_disconnect_and_retained_telemetry_cannot_reuse_old_news(self):
+        module = listener()
+        client = Mock()
+        def event(suffix, payload, retain=False):
+            module.handle(client, None, types.SimpleNamespace(
+                topic='test/' + suffix, payload=payload.encode(), retain=retain))
+        event('custom/vicky_news_a_1', json.dumps({'text': TEXT}), retain=True)
+        self.assertIn('vicky_news_a_1', module.headlines)
+        event('stats/currentApp', 'vicky_news_a_1', retain=True)
+        event('stats', '{"app":"vicky_news_a_1"}', retain=True)
+        self.assertIsNone(module.current_app)
+        event('stats/currentApp', 'vicky_news_a_1')
+        with patch.object(module.threading, 'Thread') as thread:
+            event('stats/buttonLeft', '1', retain=True)
+            module.disconnected(client, None, None, None, None)
+            event('stats/buttonLeft', '1')
+            thread.assert_not_called()
+        self.assertFalse(module.current_app_live)
+
+    def test_connect_subscribes_live_app_and_clears_selection(self):
+        module = listener()
+        client = Mock()
+        module.mqtt.CallbackAPIVersion = types.SimpleNamespace(VERSION2=2)
+        module.mqtt.Client = Mock(return_value=client)
+        module.current_app = 'vicky_news_a_1'
+        module.current_app_live = True
+        module.main()
+        client.on_connect(client, None, None, 0, None)
+        topics = [topic for topic, qos in client.subscribe.call_args.args[0]]
+        self.assertIn('test/stats/currentApp', topics)
+        self.assertIn('test/stats/buttonLeft', topics)
+        self.assertNotIn('test/stats/buttonRight', topics)
+        self.assertNotIn('test/stats/buttonSelect', topics)
+        self.assertIsNone(module.current_app)
+        self.assertFalse(module.current_app_live)
+
 
 if __name__ == '__main__':
     unittest.main()
